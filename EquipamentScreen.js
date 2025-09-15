@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 
-const EquipmentScreen = ({ player, setPlayer, onClose }) => {
+const EquipamentScreen = ({ player, setPlayer, onClose }) => {
   const [selectedTab, setSelectedTab] = useState('armor');
 
   // Dados de equipamentos disponíveis (exemplo)
-  const equipmentData = {
+  const equipamentData = {
     armor: [
       { id: 1, name: "Arc Bone Helmet", type: "helmet", atk: 15, def: 25, value: 150 },
       { id: 2, name: "Bone Boots", type: "boots", atk: 5, def: 18, value: 80 },
@@ -34,20 +34,20 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
     ]
   };
 
-  const equipItem = (item) => {
+  const equipaItem = (item) => {
     setPlayer(prev => {
-      const currentEquipment = prev.equipment || {};
+      const currentEquipament = prev.equipament || {};
       const inventory = prev.inventory.filter(i => i.id !== item.id);
       
       // Se já tinha item equipado, volta pro inventário
-      if (currentEquipment[item.type]) {
-        inventory.push(currentEquipment[item.type]);
+      if (currentEquipament[item.type]) {
+        inventory.push(currentEquipament[item.type]);
       }
 
       return {
         ...prev,
-        equipment: {
-          ...currentEquipment,
+        equipament: {
+          ...currentEquipament,
           [item.type]: item
         },
         inventory,
@@ -59,15 +59,15 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
 
   const unequipItem = (itemType) => {
     setPlayer(prev => {
-      const currentEquipment = prev.equipment || {};
-      const item = currentEquipment[itemType];
-      
+      const currentEquipament = prev.equipament || {};
+      const item = currentEquipament[itemType];
+
       if (!item) return prev;
 
       return {
         ...prev,
-        equipment: {
-          ...currentEquipment,
+        equipament: {
+          ...currentEquipament,
           [itemType]: null
         },
         inventory: [...prev.inventory, item],
@@ -78,11 +78,11 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
   };
 
   const calculateTotalStats = () => {
-    const equipment = player.equipment || {};
+    const equipament = player.equipament || {};
     let totalAtk = 0;
     let totalDef = 0;
 
-    Object.values(equipment).forEach(item => {
+    Object.values(equipament).forEach(item => {
       if (item) {
         totalAtk += item.atk;
         totalDef += item.def;
@@ -96,12 +96,12 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
   const baseAtk = 10;
   const baseDef = 5;
 
-  const renderEquipmentSlot = (type, label) => {
-    const equipment = player.equipment || {};
-    const item = equipment[type];
+  const renderEquipamentSlot = (type, label) => {
+    const equipament = player.equipament || {};
+    const item = equipament[type];
 
     return (
-      <View style={styles.equipmentSlot}>
+      <View style={styles.equipamentSlot}>
         <Text style={styles.slotLabel}>{label}</Text>
         {item ? (
           <TouchableOpacity 
@@ -124,7 +124,7 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>EQUIPMENT</Text>
+        <Text style={styles.title}>EQUIPAMENT</Text>
         <Text style={styles.coins}>Coins - {player.gold}</Text>
       </View>
 
@@ -160,16 +160,16 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
         {/* Equipamentos Equipados */}
         <View style={styles.equippedSection}>
           <Text style={styles.sectionTitle}>EQUIPADO</Text>
-          <View style={styles.equipmentGrid}>
-            {renderEquipmentSlot('helmet', 'Capacete')}
-            {renderEquipmentSlot('chest', 'Peitoral')}
-            {renderEquipmentSlot('leggings', 'Calças')}
-            {renderEquipmentSlot('boots', 'Botas')}
-            {renderEquipmentSlot('weapon', 'Arma')}
-            {renderEquipmentSlot('amulet', 'Amuleto')}
-            {renderEquipmentSlot('ring', 'Anel')}
-            {renderEquipmentSlot('bracer', 'Bracelete')}
-            {renderEquipmentSlot('belt', 'Cinto')}
+          <View style={styles.equipamentGrid}>
+            {renderEquipamentSlot('helmet', 'Capacete')}
+            {renderEquipamentSlot('chest', 'Peitoral')}
+            {renderEquipamentSlot('leggings', 'Calças')}
+            {renderEquipamentSlot('boots', 'Botas')}
+            {renderEquipamentSlot('weapon', 'Arma')}
+            {renderEquipamentSlot('amulet', 'Amuleto')}
+            {renderEquipamentSlot('ring', 'Anel')}
+            {renderEquipamentSlot('bracer', 'Bracelete')}
+            {renderEquipamentSlot('belt', 'Cinto')}
           </View>
         </View>
 
@@ -179,11 +179,11 @@ const EquipmentScreen = ({ player, setPlayer, onClose }) => {
             {selectedTab.toUpperCase()} DISPONÍVEIS
           </Text>
           <ScrollView style={styles.itemsList}>
-            {equipmentData[selectedTab].map(item => (
+            {equipamentData[selectedTab].map(item => (
               <TouchableOpacity 
                 key={item.id} 
                 style={styles.itemCard}
-                onPress={() => equipItem(item)}
+                onPress={() => equipaItem(item)}
               >
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemType}>{item.type}</Text>
@@ -271,13 +271,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#00ff88',
   },
-  equipmentGrid: {
+  equipamentGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 10,
   },
-  equipmentSlot: {
+  equipamentSlot: {
     width: '48%',
     marginBottom: 15,
   },
@@ -353,4 +353,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EquipmentScreen;
+export default EquipamentScreen;

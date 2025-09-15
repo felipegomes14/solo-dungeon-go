@@ -1,110 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Alert, Modal, Button, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Alert, Modal, Text, TouchableOpacity } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
-// Importe apenas os componentes que realmente existem
-// Comente os imports dos componentes que não foram criados ainda
-
+// CORREÇÃO: Use ./ (ponto-barra) para caminhos relativos
 import ClassSelection from "./ClassSelection";
 import Inventory from "./Inventory";
 import Combat from "./Combat";
-// import PuzzleGame from "./PuzzleGame"; // COMENTE se não existir
-// import QuizGame from "./QuizGame"; // COMENTE se não existir
-// import DungeonConfirmation from "./DungeonConfirmation"; // COMENTE se não existir
-// import EquipmentScreen from "./EquipmentScreen"; // COMENTE se não existir
-// import ShopScreen from "./ShopScreen"; // COMENTE se não existir
-
-// Componentes placeholder APENAS para os que não existem
-// (Descomente apenas os que você ainda não criou)
-
-/*
-const PuzzleGame = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Puzzle Game - Em desenvolvimento</Text>
-    <Button title="Fechar" onPress={onClose} />
-  </View>
-);
-
-const QuizGame = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Quiz Game - Em desenvolvimento</Text>
-    <Button title="Fechar" onPress={onClose} />
-  </View>
-);
-
-const DungeonConfirmation = ({ dungeon, onConfirm, onCancel }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-    <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
-      <Text>Entrar na dungeon {dungeon?.rank}?</Text>
-      <Text>Tipo: {dungeon?.type}</Text>
-      <View style={{ flexDirection: 'row', marginTop: 20 }}>
-        <Button title="Sim" onPress={onConfirm} />
-        <Button title="Não" onPress={onCancel} />
-      </View>
-    </View>
-  </View>
-);
-
-const EquipmentScreen = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Equipment Screen - Em desenvolvimento</Text>
-    <Button title="Voltar" onPress={onClose} />
-  </View>
-);
-
-const ShopScreen = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Shop Screen - Em desenvolvimento</Text>
-    <Button title="Voltar" onPress={onClose} />
-  </View>
-);
-*/
-
-// Versão simplificada - use apenas placeholders necessários
-const PuzzleGame = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Puzzle Game - Em desenvolvimento</Text>
-    <Button title="Fechar" onPress={onClose} />
-  </View>
-);
-
-const QuizGame = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Quiz Game - Em desenvolvimento</Text>
-    <Button title="Fechar" onPress={onClose} />
-  </View>
-);
-
-const DungeonConfirmation = ({ dungeon, onConfirm, onCancel }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-    <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
-      <Text>Entrar na dungeon {dungeon?.rank}?</Text>
-      <Text>Tipo: {dungeon?.type}</Text>
-      <View style={{ flexDirection: 'row', marginTop: 20 }}>
-        <Button title="Sim" onPress={onConfirm} />
-        <Button title="Não" onPress={onCancel} />
-      </View>
-    </View>
-  </View>
-);
-
-const EquipmentScreen = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Equipment Screen - Em desenvolvimento</Text>
-    <Button title="Voltar" onPress={onClose} />
-  </View>
-);
-
-const ShopScreen = ({ onClose }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-    <Text>Shop Screen - Em desenvolvimento</Text>
-    <Button title="Voltar" onPress={onClose} />
-  </View>
-);
+import PuzzleGame from "./PuzzleGame";
+import QuizGame from "./QuizGame";
+import DungeonConfirmation from "./DungeonConfirmation";
+import EquipamentScreen from "./EquipamentScreen";
+import ShopScreen from "./ShopScreen";
 
 export default function App() {
-  // ... (o resto do código permanece igual)
   const [location, setLocation] = useState(null);
   const [dungeons, setDungeons] = useState([]);
   const [currentDungeon, setCurrentDungeon] = useState(null);
@@ -112,7 +21,7 @@ export default function App() {
   const [mapKey, setMapKey] = useState(0);
   const [selectedDungeon, setSelectedDungeon] = useState(null);
   const [showDungeonConfirm, setShowDungeonConfirm] = useState(false);
-  const [showEquipment, setShowEquipment] = useState(false);
+  const [showEquipament, setShowEquipament] = useState(false);
   const [showShop, setShowShop] = useState(false);
 
   const [xp, setXp] = useState(0);
@@ -148,36 +57,314 @@ export default function App() {
         value: 20 
       }
     ],
-    equipment: {}
+    equipament: {}
   });
 
-  // ... (o resto do código permanece igual)
+  // Regeneração de HP
+  useEffect(() => {
+    const hpRegenInterval = setInterval(() => {
+      if (player.hp < player.maxHp && !currentDungeon && !currentGame) {
+        setPlayer(prev => ({
+          ...prev,
+          hp: Math.min(prev.maxHp, prev.hp + 10)
+        }));
+      }
+    }, 1000);
+
+    return () => clearInterval(hpRegenInterval);
+  }, [player.hp, player.maxHp, currentDungeon, currentGame]);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permissão negada", "O app precisa de acesso ao GPS!");
+        return;
+      }
+
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setLocation(pos.coords);
+      gerarDungeons(pos.coords.latitude, pos.coords.longitude);
+
+      const dungeonInterval = setInterval(() => {
+        gerarDungeons(pos.coords.latitude, pos.coords.longitude);
+      }, 3 * 60 * 1000);
+
+      return () => clearInterval(dungeonInterval);
+    })();
+  }, []);
+
+  const ranks = [
+    { rank: "F", color: "gray", difficulty: 1 },
+    { rank: "E", color: "green", difficulty: 2 },
+    { rank: "D", color: "blue", difficulty: 3 },
+    { rank: "C", color: "purple", difficulty: 4 },
+    { rank: "B", color: "orange", difficulty: 5 },
+    { rank: "A", color: "red", difficulty: 6 },
+  ];
+
+  const dungeonTypes = ["combat", "combat", "combat"];
+
+  const getDungeonRewards = (dungeon) => {
+    const baseXP = dungeon.difficulty * 20;
+    const baseGold = dungeon.difficulty * 15;
+    
+    return {
+      xp: baseXP,
+      gold: baseGold,
+      itens: [
+        { 
+          id: Date.now() + 1, 
+          type: 'potion', 
+          name: 'Poção de Cura', 
+          effect: 'heal', 
+          value: 30 
+        }
+      ]
+    };
+  };
+
+  const gerarDungeons = (lat, lon) => {
+    const novas = [];
+    for (let i = 0; i < 3; i++) {
+      const r = ranks[Math.floor(Math.random() * ranks.length)];
+      const dungeonType = "combat";
+      const rewards = getDungeonRewards({ ...r, type: dungeonType });
+      
+      novas.push({
+        id: Date.now() + i,
+        latitude: lat + (Math.random() - 0.5) * 0.015,
+        longitude: lon + (Math.random() - 0.5) * 0.015,
+        title: `Dungeon ${r.rank}`,
+        description: `Dungeon ${r.rank}`,
+        rank: r.rank,
+        color: r.color,
+        difficulty: r.difficulty,
+        type: dungeonType,
+        completed: false,
+        rewards: rewards
+      });
+    }
+    
+    setDungeons(novas);
+    setMapKey(prev => prev + 1);
+
+    setTimeout(() => {
+      setDungeons(prev => prev.filter(d => !novas.includes(d)));
+    }, 5 * 60 * 1000);
+  };
+
+  const handleDungeonPress = (dungeon) => {
+    if (dungeon.completed) {
+      Alert.alert("Dungeon Concluída", "Esta dungeon já foi completada!");
+      return;
+    }
+    
+    setSelectedDungeon(dungeon);
+    setShowDungeonConfirm(true);
+  };
+
+  const entrarDungeon = (dungeon) => {
+    setShowDungeonConfirm(false);
+    
+    if (dungeon.type === "combat") {
+      setCurrentDungeon(dungeon);
+    } else if (dungeon.type === "puzzle") {
+      setCurrentGame({ type: "puzzle", dungeon: dungeon });
+    } else if (dungeon.type === "quiz") {
+      setCurrentGame({ type: "quiz", dungeon: dungeon });
+    }
+  };
+
+  const ganharXp = (quantidade) => {
+    let novoXp = xp + quantidade;
+    let novoLevel = level;
+    let newPlayer = { ...player };
+
+    if (novoXp >= level * 100) {
+      novoLevel++;
+      const xpRestante = novoXp - (level * 100);
+      novoXp = xpRestante;
+      
+      newPlayer = {
+        ...newPlayer,
+        maxHp: newPlayer.maxHp + 20,
+        hp: newPlayer.maxHp + 20,
+        atk: newPlayer.atk + 5,
+        def: newPlayer.def + 2,
+        maxMana: newPlayer.maxMana + 10,
+        mana: newPlayer.maxMana + 10,
+        level: novoLevel
+      };
+      
+      Alert.alert("🎉 Level Up!", `Você alcançou o nível ${novoLevel}!`);
+      
+      if (novoLevel === 3 && !playerClass) {
+        setShowClassSelection(true);
+      }
+    }
+
+    setXp(novoXp);
+    setLevel(novoLevel);
+    setPlayer(newPlayer);
+  };
+
+  const completarDungeon = (dungeon, recompensaExtra) => {
+    const recompensaBase = dungeon.rewards;
+    const recompensaTotal = {
+      ...recompensaBase,
+      ...recompensaExtra
+    };
+    
+    setDungeons(prev => prev.map(d => 
+      d.id === dungeon.id ? { ...d, completed: true, color: "green" } : d
+    ));
+    
+    setPlayer(prev => ({
+      ...prev,
+      gold: prev.gold + recompensaTotal.gold,
+      xp: prev.xp + recompensaTotal.xp,
+      inventory: [...prev.inventory, ...recompensaTotal.itens]
+    }));
+    
+    ganharXp(recompensaTotal.xp);
+    
+    Alert.alert(
+      "🎉 Dungeon Concluída!",
+      `Recompensas:\n+${recompensaTotal.xp} XP\n+${recompensaTotal.gold} Ouro\n+${recompensaTotal.itens.length} Itens`
+    );
+  };
+
+  if (!location) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Carregando localização...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* ... (código do mapa e controles permanece igual) */}
-      
-      {/* Modais - Use os placeholders */}
-      <Modal visible={showClassSelection} animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Class Selection - Em desenvolvimento</Text>
-          <Button title="Fechar" onPress={() => setShowClassSelection(false)} />
+      <MapView
+        key={mapKey}
+        style={StyleSheet.absoluteFillObject}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.03,
+          longitudeDelta: 0.03,
+        }}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+      >
+        {dungeons.map((d) => (
+          <Marker
+            key={d.id}
+            coordinate={{ latitude: d.latitude, longitude: d.longitude }}
+            title={d.title}
+            description={d.description}
+            onPress={() => handleDungeonPress(d)}
+          >
+            <View style={[
+              styles.markerContainer, 
+              { backgroundColor: d.completed ? 'green' : d.color },
+              d.completed && styles.completedMarker
+            ]}>
+              <Text style={styles.markerText}>
+                {d.completed ? '✓' : d.rank}
+              </Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+
+      {player.hp < player.maxHp && !currentDungeon && !currentGame && (
+        <View style={styles.regenIndicator}>
+          <Text style={styles.regenText}>❤️ Regenerando +10 HP/s</Text>
         </View>
+      )}
+
+      <View style={styles.controlsContainer}>
+        <TouchableOpacity 
+          style={styles.shopButton}
+          onPress={() => setShowShop(true)}
+        >
+          <Text style={styles.buttonText}>🛒</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.equipamentButton}
+          onPress={() => setShowEquipament(true)}
+        >
+          <Text style={styles.buttonText}>⚔️</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.inventoryButton}
+          onPress={() => setShowInventory(true)}
+        >
+          <Text style={styles.buttonText}>🎒</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={() => location && gerarDungeons(location.latitude, location.longitude)}
+        >
+          <Text style={styles.buttonText}>🔄</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.playerInfo}>
+        <Text style={styles.infoText}>Lv.{level}</Text>
+        <Text style={styles.infoText}>XP: {xp}/{level * 100}</Text>
+        <Text style={styles.infoText}>HP: {player.hp}/{player.maxHp}</Text>
+        <Text style={styles.infoText}>MP: {player.mana}/{player.maxMana}</Text>
+        <Text style={styles.infoText}>ATK: {player.atk}</Text>
+        <Text style={styles.infoText}>DEF: {player.def}</Text>
+        <Text style={styles.infoText}>💰: {player.gold}</Text>
+      </View>
+
+      <Modal visible={showClassSelection} animationType="slide">
+        <ClassSelection
+          onSelect={(cls) => {
+            setPlayerClass(cls);
+            setShowClassSelection(false);
+            setPlayer(prev => ({
+              ...prev,
+              atk: prev.atk + cls.bonusAtk,
+              def: prev.def + cls.bonusDef,
+              maxHp: prev.maxHp + cls.bonusHp,
+              hp: prev.maxHp + cls.bonusHp
+            }));
+            Alert.alert("🏆 Classe escolhida!", `Você agora é ${cls.name}`);
+          }}
+        />
       </Modal>
 
       <Modal visible={showInventory} animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Inventory - Em desenvolvimento</Text>
-          <Button title="Fechar" onPress={() => setShowInventory(false)} />
-        </View>
+        <Inventory
+          player={player}
+          setPlayer={setPlayer}
+          onClose={() => setShowInventory(false)}
+        />
       </Modal>
 
-      <Modal visible={showEquipment} animationType="slide">
-        <EquipmentScreen onClose={() => setShowEquipment(false)} />
+      <Modal visible={showEquipament} animationType="slide">
+        <EquipamentScreen
+          player={player}
+          setPlayer={setPlayer}
+          onClose={() => setShowEquipament(false)}
+        />
       </Modal>
 
       <Modal visible={showShop} animationType="slide">
-        <ShopScreen onClose={() => setShowShop(false)} />
+        <ShopScreen
+          player={player}
+          setPlayer={setPlayer}
+          onClose={() => setShowShop(false)}
+        />
       </Modal>
 
       <Modal visible={showDungeonConfirm} animationType="slide" transparent={true}>
@@ -204,17 +391,30 @@ export default function App() {
 
       <Modal visible={!!currentGame} animationType="slide">
         {currentGame?.type === "puzzle" && (
-          <PuzzleGame onClose={() => setCurrentGame(null)} />
+          <PuzzleGame
+            dungeon={currentGame.dungeon}
+            onClose={() => setCurrentGame(null)}
+            onComplete={(recompensaExtra) => {
+              completarDungeon(currentGame.dungeon, recompensaExtra);
+              setCurrentGame(null);
+            }}
+          />
         )}
         {currentGame?.type === "quiz" && (
-          <QuizGame onClose={() => setCurrentGame(null)} />
+          <QuizGame
+            dungeon={currentGame.dungeon}
+            onClose={() => setCurrentGame(null)}
+            onComplete={(recompensaExtra) => {
+              completarDungeon(currentGame.dungeon, recompensaExtra);
+              setCurrentGame(null);
+            }}
+          />
         )}
       </Modal>
     </View>
   );
 }
 
-// ... (os estilos permanecem iguais)
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: {
@@ -251,7 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  equipmentButton: {
+  equipamentButton: {
     backgroundColor: '#9b59b6',
     padding: 15,
     borderRadius: 25,
@@ -313,9 +513,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
-  },
-  modalContainer: {
-    flex: 1,
-    padding: 20,
   }
 });
