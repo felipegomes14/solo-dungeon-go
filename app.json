@@ -24,12 +24,6 @@
         {
           "isAndroidBackgroundLocationEnabled": true
         }
-      ],
-      [
-        "expo-maps",
-        {
-          "apiKey": "AIzaSyASvE7ecGwCtkLMeCFf0_fsinauzcsdi-Y"
-        }
       ]
     ],
     "extra": {
