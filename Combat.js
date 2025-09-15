@@ -1,222 +1,500 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 
-export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose }) {
-    const [monster, setMonster] = useState(null);
-    const [monsterHP, setMonsterHP] = useState(0);
-    const [combatLog, setCombatLog] = useState([]);
-    const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, onComplete }) {
+  const [monsters, setMonsters] = useState([]);
+  const [currentMonsterIndex, setCurrentMonsterIndex] = useState(0);
+  const [combatLog, setCombatLog] = useState([]);
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [isDefending, setIsDefending] = useState(false);
+  const [combatStatus, setCombatStatus] = useState('ongoing');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-    useEffect(() => {
-        if (dungeon) {
-            gerarMonstro(dungeon.rank);
-        }
-    }, [dungeon]);
+  const monsterTemplates = {
+    'F': { name: "Goblin", hp: 30, atk: 8, def: 2, xp: 15, gold: 10 },
+    'E': { name: "Orc", hp: 50, atk: 12, def: 3, xp: 25, gold: 20 },
+    'D': { name: "Esqueleto", hp: 70, atk: 15, def: 4, xp: 35, gold: 30 },
+    'C': { name: "Lobisomem", hp: 90, atk: 18, def: 5, xp: 45, gold: 40 },
+    'B': { name: "Vampiro", hp: 120, atk: 22, def: 6, xp: 60, gold: 50 },
+    'A': { name: "Dragão", hp: 150, atk: 25, def: 8, xp: 80, gold: 70 },
+    'S': { name: "Demônio", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
+  };
 
-    const gerarMonstro = (rank) => {
-        const pool = {
-            F: [{ nome: "Rato", hp: 30, atk: 5, xp: 5, gold: 2 }],
-            E: [{ nome: "Goblin", hp: 50, atk: 7, xp: 10, gold: 5 }],
-            D: [{ nome: "Orc", hp: 80, atk: 12, xp: 20, gold: 10 }],
-            C: [{ nome: "Cavaleiro", hp: 120, atk: 15, xp: 30, gold: 20 }],
-            B: [{ nome: "Dragão Jovem", hp: 200, atk: 25, xp: 60, gold: 50 }],
-            A: [{ nome: "Dragão Ancião", hp: 300, atk: 40, xp: 100, gold: 100 }],
-            S: [{ nome: "Titã Sombrio", hp: 500, atk: 60, xp: 200, gold: 200 }],
-            SS: [{ nome: "Deus Antigo", hp: 1000, atk: 100, xp: 500, gold: 500 }],
-        };
-        const escolhido = pool[rank][0];
-        setMonster(escolhido);
-        setMonsterHP(escolhido.hp);
-        setCombatLog([`Um ${escolhido.nome} apareceu!`]);
-    };
-
-    const atacar = () => {
-        if (!isPlayerTurn) return;
-        const dano = Math.max(0, player.atk - 2);
-        setMonsterHP((hp) => {
-            const novo = Math.max(0, hp - dano);
-            setCombatLog((log) => [`Você causou ${dano} de dano.`, ...log]);
-            if (novo > 0) {
-                setTimeout(turnoMonstro, 1000);
-            }
-            return novo;
+  // Inicializar combate
+  useEffect(() => {
+    if (dungeon) {
+      const monsterCount = Math.min(3, 1 + Math.floor(dungeon.difficulty / 2));
+      const newMonsters = [];
+      
+      for (let i = 0; i < monsterCount; i++) {
+        const template = monsterTemplates[dungeon.rank] || monsterTemplates['F'];
+        newMonsters.push({
+          ...template,
+          currentHp: template.hp,
+          id: i
         });
-        setIsPlayerTurn(false);
-    };
+      }
+      
+      setMonsters(newMonsters);
+      setCurrentMonsterIndex(0);
+      setCombatLog([`Você entrou na dungeon ${dungeon.rank}!`]);
+      setIsPlayerTurn(true);
+      setCombatStatus('ongoing');
+      setIsProcessing(false);
+      setIsDefending(false);
+    }
+  }, [dungeon]);
 
-    const habilidade = (tipo) => {
-        if (!isPlayerTurn) return;
-        if (player.mp < 10) {
-            Alert.alert("⚠️ Sem mana!");
-            return;
-        }
+  const currentMonster = monsters[currentMonsterIndex];
 
-        let dano = 0;
-        if (tipo === "skill1") dano = player.atk * 2;
-        if (tipo === "heal") {
-            const cura = 30;
-            setPlayer((p) => ({ ...p, hp: Math.min(p.maxHp, p.hp + cura), mp: p.mp - 10 }));
-            setCombatLog((log) => [`Você usou Cura e recuperou ${cura} HP.`, ...log]);
-            setIsPlayerTurn(false);
-            setTimeout(turnoMonstro, 1000);
-            return;
-        }
+  const addToLog = (message) => {
+    setCombatLog(prev => [message, ...prev.slice(0, 14)]);
+  };
 
-        setMonsterHP((hp) => {
-            const novo = Math.max(0, hp - dano);
-            setCombatLog((log) => [`Você usou habilidade e causou ${dano} de dano!`, ...log]);
-            if (novo > 0) {
-                setTimeout(turnoMonstro, 1000);
-            }
-            return novo;
-        });
+  const playerAttack = () => {
+    if (isProcessing || !isPlayerTurn || combatStatus !== 'ongoing' || !currentMonster) return;
+    
+    setIsProcessing(true);
+    
+    // Garantir que os valores são números
+    const playerAtk = Number(player.atk) || 10;
+    const monsterDef = Number(currentMonster.def) || 2;
+    
+    const baseDamage = playerAtk;
+    const critChance = 0.2;
+    const isCrit = Math.random() < critChance;
+    const damage = isCrit ? Math.floor(baseDamage * 1.5) : baseDamage;
+    
+    const actualDamage = Math.max(1, damage - monsterDef);
+    const currentMonsterHp = Number(currentMonster.currentHp) || 0;
+    const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
 
-        setPlayer((p) => ({ ...p, mp: p.mp - 10 }));
-        setIsPlayerTurn(false);
-    };
-
-    const turnoMonstro = () => {
-        if (!monster) return;
-        const dano = monster.atk;
-        setPlayer((p) => {
-            const novoHp = Math.max(0, p.hp - dano);
-            setCombatLog((log) => [`${monster.nome} causou ${dano} de dano!`, ...log]);
-            return { ...p, hp: novoHp };
-        });
-        setIsPlayerTurn(true);
-    };
-
-    useEffect(() => {
-        if (monster && monsterHP <= 0) {
-            const loot = gerarLoot();
-
-            Alert.alert("🏆 Vitória!", `Você derrotou ${monster.nome}!`);
-            ganharXp(monster.xp);
-
-            setPlayer((p) => ({
-                ...p,
-                gold: p.gold + monster.gold,
-                inventory: [...p.inventory, ...loot], // adiciona loot ao inventário
-            }));
-
-            if (loot.length > 0) {
-                setCombatLog((log) => [
-                    `💰 Loot encontrado: ${loot.map((l) => l.name).join(", ")}`,
-                    ...log,
-                ]);
-            }
-
-            onClose();
-        }
-
-        if (monster && player.hp <= 0) {
-            Alert.alert("💀 Derrota!", `Você foi derrotado pelo ${monster.nome}.`);
-            setPlayer((p) => ({
-                ...p,
-                hp: p.maxHp,
-                mp: p.maxMp,
-                gold: Math.max(0, p.gold - 10),
-            }));
-            onClose();
-        }
-    }, [monsterHP, player.hp]);
-
-
-
-    return (
-        <View style={styles.container}>
-            {monster && (
-                <>
-                    <Text style={styles.title}>⚔️ {monster.nome} (HP: {monsterHP})</Text>
-
-                    {/* Status do jogador */}
-                    <Text style={styles.playerStatus}>HP: {player.hp}/{player.maxHp} | MP: {player.mp}/{player.maxMp}</Text>
-
-                    {/* Ações */}
-                    <View style={styles.actions}>
-                        <TouchableOpacity style={styles.button} onPress={atacar}>
-                            <Text style={styles.buttonText}>Atacar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => habilidade("skill1")}>
-                            <Text style={styles.buttonText}>Skill: Golpe Forte</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => habilidade("heal")}>
-                            <Text style={styles.buttonText}>Skill: Cura</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={onClose}>
-                            <Text style={styles.buttonText}>Fugir</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Log */}
-                    <ScrollView style={styles.log}>
-                        {combatLog.map((l, i) => (
-                            <Text key={i} style={styles.logText}>{l}</Text>
-                        ))}
-                    </ScrollView>
-                </>
-            )}
-        </View>
+    addToLog(isCrit ? 
+      `💥 CRÍTICO! Você causou ${actualDamage} de dano!` :
+      `⚔️ Você causou ${actualDamage} de dano!`
     );
+
+    // Atualiza monstro
+    const newMonsters = monsters.map((monster, index) => 
+      index === currentMonsterIndex 
+        ? { ...monster, currentHp: newMonsterHp }
+        : monster
+    );
+    
+    setMonsters(newMonsters);
+
+    if (newMonsterHp <= 0) {
+      addToLog(`🎯 ${currentMonster.name} derrotado!`);
+      
+      if (currentMonsterIndex < monsters.length - 1) {
+        setTimeout(() => {
+          setCurrentMonsterIndex(prev => prev + 1);
+          addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
+          setIsPlayerTurn(true);
+          setIsProcessing(false);
+        }, 1000);
+      } else {
+        setTimeout(() => victory(), 1000);
+      }
+    } else {
+      setIsPlayerTurn(false);
+      setTimeout(() => monsterTurn(), 1000);
+    }
+  };
+
+  const playerDefend = () => {
+    if (isProcessing || !isPlayerTurn || combatStatus !== 'ongoing') return;
+    
+    setIsProcessing(true);
+    addToLog("🛡️ Você se defendeu!");
+    setIsDefending(true);
+    setIsPlayerTurn(false);
+    
+    setTimeout(() => {
+      monsterTurn();
+    }, 1000);
+  };
+
+  const playerSkill = () => {
+    if (isProcessing || !isPlayerTurn || combatStatus !== 'ongoing' || !currentMonster) return;
+    
+    const playerMana = Number(player.mana) || 0;
+    if (playerMana < 20) {
+      addToLog("❌ Mana insuficiente (20 MP necessário)!");
+      return;
+    }
+
+    setIsProcessing(true);
+    
+    // Atualiza mana primeiro
+    setPlayer(prev => ({
+      ...prev,
+      mana: Math.max(0, (Number(prev.mana) || 0) - 20)
+    }));
+
+    const playerAtk = Number(player.atk) || 10;
+    const monsterDef = Number(currentMonster.def) || 2;
+    
+    const skillDamage = Math.floor(playerAtk * 1.8);
+    const actualDamage = Math.max(1, skillDamage - monsterDef);
+    const currentMonsterHp = Number(currentMonster.currentHp) || 0;
+    const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
+
+    addToLog(`🔥 Skill especial! ${actualDamage} de dano! (-20 MP)`);
+
+    const newMonsters = monsters.map((monster, index) => 
+      index === currentMonsterIndex 
+        ? { ...monster, currentHp: newMonsterHp }
+        : monster
+    );
+    
+    setMonsters(newMonsters);
+
+    if (newMonsterHp <= 0) {
+      addToLog(`🎯 ${currentMonster.name} derrotado!`);
+      
+      if (currentMonsterIndex < monsters.length - 1) {
+        setTimeout(() => {
+          setCurrentMonsterIndex(prev => prev + 1);
+          addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
+          setIsPlayerTurn(true);
+          setIsProcessing(false);
+        }, 1000);
+      } else {
+        setTimeout(() => victory(), 1000);
+      }
+    } else {
+      setIsPlayerTurn(false);
+      setTimeout(() => monsterTurn(), 1000);
+    }
+  };
+
+  const monsterTurn = () => {
+    if (combatStatus !== 'ongoing' || !currentMonster) {
+      setIsProcessing(false);
+      return;
+    }
+
+    const monsterAtk = Number(currentMonster.atk) || 8;
+    const playerDefValue = Number(player.def) || 5;
+    
+    const defenseBonus = isDefending ? playerDefValue * 2 : playerDefValue;
+    const monsterDamage = Math.max(1, monsterAtk - defenseBonus);
+    const actualDamage = isDefending ? Math.floor(monsterDamage / 2) : monsterDamage;
+
+    const playerHp = Number(player.hp) || 0;
+    const newHp = Math.max(0, playerHp - actualDamage);
+
+    addToLog(isDefending ? 
+      `🛡️ ${currentMonster.name} causou ${actualDamage} de dano (defendido!)` :
+      `👹 ${currentMonster.name} causou ${actualDamage} de dano!`
+    );
+
+    setPlayer(prev => ({
+      ...prev,
+      hp: newHp
+    }));
+
+    if (newHp <= 0) {
+      addToLog('💀 Você foi derrotado!');
+      setCombatStatus('lost');
+    }
+
+    setIsDefending(false);
+    setIsPlayerTurn(true);
+    setIsProcessing(false);
+  };
+
+  const victory = () => {
+    setCombatStatus('won');
+    const totalXp = monsters.reduce((sum, m) => sum + (Number(m.xp) || 0), 0);
+    const totalGold = monsters.reduce((sum, m) => sum + (Number(m.gold) || 0), 0);
+    
+    addToLog(`🎉 Vitória! +${totalXp} XP e +${totalGold} de ouro!`);
+    
+    const recompensa = {
+      xp: totalXp,
+      gold: totalGold,
+      itens: [
+        { type: 'potion', name: 'Poção de Cura', effect: 'heal', value: 30 },
+        { type: 'potion', name: 'Poção de Mana', effect: 'mana', value: 20 }
+      ]
+    };
+    
+    ganharXp(totalXp);
+    
+    // Atualiza o player após a vitória
+    setTimeout(() => {
+      setPlayer(prev => ({
+        ...prev,
+        gold: (Number(prev.gold) || 0) + totalGold,
+        inventory: [...prev.inventory, ...recompensa.itens]
+      }));
+      onComplete(recompensa);
+    }, 2000);
+  };
+
+  const useItem = (item) => {
+    if (isProcessing || combatStatus !== 'ongoing') return;
+
+    setIsProcessing(true);
+
+    if (item.type === 'potion') {
+      const healValue = Number(item.value) || 30;
+      setPlayer(prev => ({
+        ...prev,
+        hp: Math.min(Number(prev.maxHp) || 100, (Number(prev.hp) || 0) + healValue),
+        inventory: prev.inventory.filter(i => i !== item)
+      }));
+      addToLog(`🧪 Usou ${item.name}! +${healValue} HP`);
+    } else if (item.type === 'scroll') {
+      const xpValue = Number(item.value) || 50;
+      addToLog(`📜 ${item.name} usado! +${xpValue} XP`);
+      ganharXp(xpValue);
+      setPlayer(prev => ({
+        ...prev,
+        inventory: prev.inventory.filter(i => i !== item)
+      }));
+    }
+
+    setIsPlayerTurn(false);
+    setTimeout(() => {
+      monsterTurn();
+    }, 1000);
+  };
+
+  const flee = () => {
+    if (isProcessing) return;
+    
+    if (Math.random() < 0.7) {
+      addToLog('🏃‍♂️ Fuga bem-sucedida!');
+      onClose();
+    } else {
+      addToLog('❌ Falha na fuga!');
+      setIsPlayerTurn(false);
+      setTimeout(() => monsterTurn(), 1000);
+    }
+  };
+
+  if (!currentMonster || monsters.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Carregando combate...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>⚔️ Combate - {dungeon?.title}</Text>
+      
+      <View style={styles.stats}>
+        <Text style={styles.statText}>Seu HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
+        <Text style={styles.statText}>MP: {Number(player.mana) || 0}/{Number(player.maxMana) || 50}</Text>
+        <Text style={styles.statText}>Monstro: {currentMonster.name}</Text>
+        <Text style={styles.statText}>HP Monstro: {Number(currentMonster.currentHp) || 0}/{Number(currentMonster.hp) || 0}</Text>
+        <Text style={styles.statText}>Monstros: {currentMonsterIndex + 1}/{monsters.length}</Text>
+      </View>
+
+      <ScrollView style={styles.combatLog}>
+        {combatLog.map((log, index) => (
+          <Text key={index} style={styles.logText}>{log}</Text>
+        ))}
+      </ScrollView>
+
+      {combatStatus === 'ongoing' && isPlayerTurn && (
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={[styles.attackButton, isProcessing && styles.disabledButton]} 
+            onPress={playerAttack}
+            disabled={isProcessing}
+          >
+            <Text style={styles.buttonText}>⚔️ Atacar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.defendButton, isProcessing && styles.disabledButton]} 
+            onPress={playerDefend}
+            disabled={isProcessing}
+          >
+            <Text style={styles.buttonText}>🛡️ Defender</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.skillButton, (isProcessing || (Number(player.mana) || 0) < 20) && styles.disabledButton]} 
+            onPress={playerSkill}
+            disabled={isProcessing || (Number(player.mana) || 0) < 20}
+          >
+            <Text style={styles.buttonText}>🔥 Skill (20 MP)</Text>
+          </TouchableOpacity>
+
+          <View style={styles.itemsSection}>
+            <Text style={styles.itemsTitle}>Itens:</Text>
+            {player.inventory.map((item, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.itemButton, isProcessing && styles.disabledButton]}
+                onPress={() => useItem(item)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.itemText}>{item.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.fleeButton, isProcessing && styles.disabledButton]} 
+            onPress={flee}
+            disabled={isProcessing}
+          >
+            <Text style={styles.fleeText}>🏃‍♂️ Fugir (70%)</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {combatStatus === 'lost' && (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultText}>💀 Você foi derrotado!</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeText}>Sair</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {combatStatus === 'won' && (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultText}>🎉 Vitória!</Text>
+          <Text style={styles.resultSubText}>Toque para continuar...</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
-// Dentro do Combat.js
-
-const gerarLoot = () => {
-    const drops = [];
-
-    // Poções (50% de chance)
-    if (Math.random() < 0.5) {
-        drops.push({ type: "potion", name: "Poção de Cura", effect: { hp: +50 } });
-    }
-    if (Math.random() < 0.3) {
-        drops.push({ type: "potion", name: "Poção de Mana", effect: { mp: +30 } });
-    }
-
-    // Equipamentos (30% de chance)
-    if (Math.random() < 0.3) {
-        const raridades = [
-            { tier: "Comum", color: "white", bonus: 5 },
-            { tier: "Raro", color: "blue", bonus: 10 },
-            { tier: "Épico", color: "purple", bonus: 20 },
-            { tier: "Lendário", color: "orange", bonus: 40 },
-        ];
-        const escolha = raridades[Math.floor(Math.random() * raridades.length)];
-
-        const equipamentos = [
-            { type: "equip", name: "Espada", stat: "atk" },
-            { type: "equip", name: "Armadura", stat: "def" },
-            { type: "equip", name: "Cajado", stat: "atk" },
-            { type: "equip", name: "Elmo", stat: "def" },
-        ];
-        const eq = equipamentos[Math.floor(Math.random() * equipamentos.length)];
-
-        drops.push({
-            type: eq.type,
-            name: `${eq.name} ${escolha.tier}`,
-            stat: eq.stat,
-            bonus: escolha.bonus,
-            color: escolha.color,
-        });
-    }
-
-    return drops;
-};
-
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#111", padding: 20 },
-    title: { fontSize: 22, color: "#fff", marginBottom: 10, textAlign: "center" },
-    playerStatus: { fontSize: 16, color: "#0f0", marginBottom: 20, textAlign: "center" },
-    actions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
-    button: {
-        backgroundColor: "#333",
-        margin: 5,
-        padding: 10,
-        borderRadius: 8,
-        width: "40%",
-    },
-    buttonText: { color: "#fff", textAlign: "center" },
-    log: { marginTop: 20, backgroundColor: "#222", padding: 10, borderRadius: 8, height: 200 },
-    logText: { color: "#ccc", marginBottom: 5 },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#2c3e50'
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: 'white'
+  },
+  stats: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10
+  },
+  statText: {
+    color: 'white',
+    fontSize: 12,
+    marginBottom: 2
+  },
+  combatLog: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10,
+    maxHeight: 200
+  },
+  logText: {
+    color: 'white',
+    fontSize: 12,
+    marginBottom: 3
+  },
+  actions: {
+    marginBottom: 10
+  },
+  attackButton: {
+    backgroundColor: '#e74c3c',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  defendButton: {
+    backgroundColor: '#3498db',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  skillButton: {
+    backgroundColor: '#9b59b6',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  itemsSection: {
+    marginBottom: 12
+  },
+  itemsTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginBottom: 5,
+    fontSize: 14
+  },
+  itemButton: {
+    backgroundColor: '#27ae60',
+    padding: 8,
+    borderRadius: 5,
+    marginBottom: 4
+  },
+  itemText: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 12
+  },
+  fleeButton: {
+    backgroundColor: '#f39c12',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center'
+  },
+  fleeText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  closeButton: {
+    backgroundColor: '#7f8c8d',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10
+  },
+  closeText: {
+    color: 'white',
+    fontWeight: 'bold'
+  },
+  disabledButton: {
+    opacity: 0.5
+  },
+  resultContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20
+  },
+  resultText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10
+  },
+  resultSubText: {
+    color: '#ccc',
+    fontSize: 14
+  }
 });
