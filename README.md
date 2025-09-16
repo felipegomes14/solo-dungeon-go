@@ -1,86 +1,154 @@
-# 📖 Solo Leveling GO - README
+Um jogo mobile de RPG com realidade aumentada onde você explora dungeons baseadas em sua localização real! Derrote monstros, colete tesouros e evolua seu personagem no mundo real.
 
-Um jogo estilo **Solo Leveling** usando **React Native + Expo** onde
-você explora o mapa, encontra **dungeons**, luta contra **monstros** e
-coleta **loot**.
+## ✨ Características
 
-------------------------------------------------------------------------
+- 🗺️ **Mapa baseado em localização real**
+- ⚔️ **Sistema de combate por turnos**
+- 🎒 **Inventário e equipamentos completos**
+- 🏰 **Dungeons geradas proceduralmente**
+- 🛒 **Sistema de loja e economia**
+- 📱 **Interface intuitiva e responsiva**
 
-## 🚀 Pré-requisitos
+## 📋 Pré-requisitos
 
 Antes de começar, você precisa ter instalado:
+- 📦 **Node.js** (versão 16 ou superior)
+- 📱 **Expo Go** app no celular
+- 🌐 **Conexão com internet**
 
--   [Node.js (LTS)](https://nodejs.org/)\
--   [Expo CLI](https://docs.expo.dev/get-started/installation/)\
--   Um celular com o aplicativo **Expo Go** (Android/iOS)
+## 🚀 Como Baixar e Executar
 
-------------------------------------------------------------------------
+### 1️⃣ **Clone o projeto**
+```bash
+git clone https://github.com/felipegomes14/solo-dungeon-go.git
+cd solo-dungeon-go
+2️⃣ Instale as dependências
+bash
+npm install
+# ou se preferir yarn
+yarn install
+3️⃣ Execute a aplicação
+bash
+npx expo start
+4️⃣ No seu celular
+📲 Abra o app Expo Go
 
-## 📦 Instalação do Projeto
+📷 Escaneie o QR code que aparecer no terminal
 
-1.  **Clone o repositório** ou crie o projeto:
+📍 Permita acesso à localização
 
-    ``` bash
-    git clone https://github.com/felipegomes14/solo-dungeon-go.git
-    cd solo-leveling-go
-    ```
+🎮 Comece a jogar!
 
-    ou, se já tiver um projeto Expo criado:
+🎮 Comandos Úteis
+bash
+# Iniciar normalmente
+npx expo start
 
-    ``` bash
-    npx create-expo-app solo-leveling-go
-    cd solo-leveling-go
-    ```
+# Limpar cache (se tiver problemas)
+npx expo start --clear
 
-2.  **Instale as dependências necessárias**:
+# Executar no Android
+npx expo start --android
 
-    ``` bash
-    npm install react-native-maps expo-location
-    ```
+# Executar no iOS (apenas macOS)
+npx expo start --ios
 
-    ou com yarn:
+# Executar no navegador
+npx expo start --web
 
-    ``` bash
-    yarn add react-native-maps expo-location
-    ```
+# Verificar versão do Expo
+npx expo --version
+📱 Como Jogar
+🗺️ Exploração
+🚶‍♂️ Ande pelo mundo real para encontrar dungeons
 
-------------------------------------------------------------------------
+📍 Toque nos marcadores coloridos no mapa
 
-## ▶️ Rodando o Projeto
+🏰 Dungeons aparecem aleatoriamente ao seu redor
 
-1.  Inicie o servidor de desenvolvimento:
+⚔️ Combate
+⚔️ Ataque - Causa dano básico aos monstros
 
-    ``` bash
-    npx expo start
-    ```
+🛡️ Defender - Reduz dano recebido
 
-2.  Abra o aplicativo **Expo Go** no seu celular.
+🔥 Habilidades - Ataques especiais que usam mana
 
-3.  Escaneie o **QR Code** que aparece no terminal ou no navegador.
+🧪 Itens - Use poções e scrolls durante a batalha
 
-4.  O app abrirá exibindo o **mapa** e suas **dungeons**.
+🏆 Progressão
+⭐ Ganhe XP derrotando monstros
 
-------------------------------------------------------------------------
+📈 Suba de nível para ficar mais forte
 
-## ⚔️ Como Jogar
+🎁 Encontre equipamentos raros
 
--   Caminhe até uma **dungeon fixa** (ex.: São Paulo, Nova York, Paris)
-    ou ajuste as coordenadas no código para sua região.\
--   Quando entrar no raio da dungeon, um **monstro aleatório**
-    aparecerá.\
--   Você pode:
-    -   **Atacar** → causa dano no inimigo.\
-    -   **Fugir** → sai da dungeon sem recompensas.\
--   Ao derrotar monstros você ganha:
-    -   **XP** → para upar de nível.\
-    -   **Gold** → para comprar futuros itens.\
-    -   **Loots raros** como Poções de Cura.
+💰 Complete dungeons para ganhar recompensas
 
-------------------------------------------------------------------------
+🛠️ Tecnologias Utilizadas
+React Native - Framework mobile
 
-## 📌 Notas
+Expo - Plataforma de desenvolvimento
 
--   Ative a **localização (GPS)** do celular antes de abrir o app.\
--   Para testar sem precisar viajar até São Paulo/Nova York/Paris 😅,
-    ajuste o arquivo `App.js` em `dungeonsFixas` para coordenadas
-    próximas da sua casa.
+React Native Maps - Mapas e geolocalização
+
+Expo Location - Acesso à localização GPS
+
+JavaScript - Lógica do jogo
+
+📦 Estrutura do Projeto
+text
+solo-dungeon-go/
+├── App.js                 # Componente principal
+├── ClassSelection.js      # Seleção de classes
+├── Inventory.js          # Sistema de inventário
+├── Combat.js             # Sistema de combate
+├── EquipamentScreen.js    # Gerenciamento de equipamentos
+├── ShopScreen.js         # Loja do jogo
+├── PuzzleGame.js         # Mini-game de puzzle
+├── QuizGame.js           # Mini-game de quiz
+├── DungeonConfirmation.js # Confirmação de entrada
+└── package.json          # Dependências do projeto
+⚠️ Dicas Importantes
+✅ Para melhor experiência:
+📍 Permita acesso à localização
+
+🌳 Use em áreas abertas and parques
+
+🚶‍♂️ Movimente-se fisicamente para explorar
+
+📶 Conecte-se à internet para carregar mapas
+
+❌ Problemas comuns:
+Se o app não carregar: npx expo start --clear
+
+Se não encontrar dungeons: ande mais um pouco
+
+Se crashar: reinicie o app Expo Go
+
+🐛 Reportar Problemas
+Encontrou um bug? Quer sugerir uma melhoria?
+
+📋 Abra uma issue no GitHub
+
+👥 Contribuição
+Contribuições são sempre bem-vindas!
+
+Faça um fork do projeto
+
+Crie uma branch para sua feature (git checkout -b feature/AmazingFeature)
+
+Commit suas mudanças (git commit -m 'Add some AmazingFeature')
+
+Push para a branch (git push origin feature/AmazingFeature)
+
+Abra um Pull Request
+
+📄 Licença
+Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
+
+🙋‍♂️ Suporte
+Precisa de ajuda? Entre em contato:
+
+📧 Email: [lpegomes14@gmail.com]
+
+💬 Issues: GitHub Issues

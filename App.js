@@ -3,9 +3,8 @@ import { StyleSheet, View, Alert, Modal, Text, TouchableOpacity } from "react-na
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
-// CORREÇÃO: Use ./ (ponto-barra) para caminhos relativos
+// Importe os componentes da pasta raiz
 import ClassSelection from "./ClassSelection";
-import Inventory from "./Inventory";
 import Combat from "./Combat";
 import PuzzleGame from "./PuzzleGame";
 import QuizGame from "./QuizGame";
@@ -44,14 +43,14 @@ export default function App() {
     inventory: [
       { 
         id: 1, 
-        type: "potion", 
+        type: "poção", 
         name: "Poção de Cura", 
-        effect: "heal", 
+        effect: "cura", 
         value: 30 
       },
       { 
         id: 2, 
-        type: "potion", 
+        type: "poção", 
         name: "Poção de Mana", 
         effect: "mana", 
         value: 20 
@@ -105,40 +104,78 @@ export default function App() {
     { rank: "A", color: "red", difficulty: 6 },
   ];
 
-  const dungeonTypes = ["combat", "combat", "combat"];
+  const getDungeonType = () => {
+    const random = Math.random();
+    if (random < 0.5) return "combat";      // 50% de chance
+    if (random < 0.75) return "puzzle";     // 25% de chance
+    return "quiz";                          // 25% de chance
+  };
 
   const getDungeonRewards = (dungeon) => {
     const baseXP = dungeon.difficulty * 20;
     const baseGold = dungeon.difficulty * 15;
     
+    // Recompensas específicas por tipo de dungeon
+    let itens = [];
+    
+    if (dungeon.type === "combat") {
+      itens = [
+        { 
+          id: Date.now() + 1, 
+          type: 'poção', 
+          name: 'Poção de Cura', 
+          effect: 'cura', 
+          value: 30 
+        }
+      ];
+    } else if (dungeon.type === "puzzle") {
+      itens = [
+        { 
+          id: Date.now() + 1, 
+          type: 'scroll', 
+          name: 'Pergaminho da Sabedoria', 
+          effect: 'xp', 
+          value: 15 
+        }
+      ];
+    } else if (dungeon.type === "quiz") {
+      itens = [
+        { 
+          id: Date.now() + 1, 
+          type: 'livro', 
+          name: 'Livro do Conhecimento', 
+          effect: 'mana', 
+          value: 25 
+        }
+      ];
+    }
+    
     return {
       xp: baseXP,
       gold: baseGold,
-      itens: [
-        { 
-          id: Date.now() + 1, 
-          type: 'potion', 
-          name: 'Poção de Cura', 
-          effect: 'heal', 
-          value: 30 
-        }
-      ]
+      itens: itens
     };
   };
 
   const gerarDungeons = (lat, lon) => {
     const novas = [];
-    for (let i = 0; i < 3; i++) {
+    const numDungeons = 10; // Aumentado para 10 dungeons
+    
+    for (let i = 0; i < numDungeons; i++) {
       const r = ranks[Math.floor(Math.random() * ranks.length)];
-      const dungeonType = "combat";
+      const dungeonType = getDungeonType();
       const rewards = getDungeonRewards({ ...r, type: dungeonType });
+      
+      // Aumenta a distância em 30% (de 0.015 para 0.0195)
+      const distanceMultiplier = 1.3;
+      const baseRange = 0.015 * distanceMultiplier;
       
       novas.push({
         id: Date.now() + i,
-        latitude: lat + (Math.random() - 0.5) * 0.015,
-        longitude: lon + (Math.random() - 0.5) * 0.015,
-        title: `Dungeon ${r.rank}`,
-        description: `Dungeon ${r.rank}`,
+        latitude: lat + (Math.random() - 0.5) * baseRange,
+        longitude: lon + (Math.random() - 0.5) * baseRange,
+        title: `Dungeon ${r.rank} - ${dungeonType}`,
+        description: `${dungeonType.charAt(0).toUpperCase() + dungeonType.slice(1)} Dungeon ${r.rank}`,
         rank: r.rank,
         color: r.color,
         difficulty: r.difficulty,
@@ -321,7 +358,7 @@ export default function App() {
         <Text style={styles.infoText}>XP: {xp}/{level * 100}</Text>
         <Text style={styles.infoText}>HP: {player.hp}/{player.maxHp}</Text>
         <Text style={styles.infoText}>MP: {player.mana}/{player.maxMana}</Text>
-        <Text style={styles.infoText}>ATK: {player.atk}</Text>
+        <Text style={styles.infoText}>ATQ: {player.atk}</Text>
         <Text style={styles.infoText}>DEF: {player.def}</Text>
         <Text style={styles.infoText}>💰: {player.gold}</Text>
       </View>
@@ -344,7 +381,7 @@ export default function App() {
       </Modal>
 
       <Modal visible={showInventory} animationType="slide">
-        <Inventory
+        <EquipamentScreen
           player={player}
           setPlayer={setPlayer}
           onClose={() => setShowInventory(false)}
