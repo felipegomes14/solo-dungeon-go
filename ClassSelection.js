@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 const ClassSelection = ({ onSelect }) => {
   const classes = [
@@ -126,7 +126,7 @@ const ClassSelection = ({ onSelect }) => {
     },
     {
       name: "Alquimista",
-      description: "Criador de poções e especialista em elementos",
+      description: "Criador de poções và especialista em elementos",
       bonusAtk: 14,
       bonusDef: 8,
       bonusHp: 20,
@@ -142,30 +142,32 @@ const ClassSelection = ({ onSelect }) => {
       <Text style={styles.title}>🎯 Selecione sua Classe</Text>
       <Text style={styles.subtitle}>Escolha sabiamente, sua jornada depende disso!</Text>
       
-      <View style={styles.classesContainer}>
-        {classes.map((cls, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.classCard, { backgroundColor: cls.color }]}
-            onPress={() => onSelect(cls)}
-          >
-            <Text style={styles.classEmoji}>{cls.emoji}</Text>
-            <Text style={styles.className}>{cls.name}</Text>
-            <Text style={styles.classDescription}>{cls.description}</Text>
-            
-            <View style={styles.bonuses}>
-              <Text style={styles.bonusText}>⚔️ ATK: +{cls.bonusAtk}</Text>
-              <Text style={styles.bonusText}>🛡️ DEF: +{cls.bonusDef}</Text>
-              <Text style={styles.bonusText}>❤️ HP: +{cls.bonusHp}</Text>
-              {cls.bonusMana > 0 && <Text style={styles.bonusText}>🔵 MP: +{cls.bonusMana}</Text>}
-            </View>
-            
-            <View style={styles.specialContainer}>
-              <Text style={styles.specialText}>✨ {cls.special}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.classesContainer}>
+          {classes.map((cls, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.classCard, { backgroundColor: cls.color }]}
+              onPress={() => onSelect(cls)}
+            >
+              <Text style={styles.classEmoji}>{cls.emoji}</Text>
+              <Text style={styles.className}>{cls.name}</Text>
+              <Text style={styles.classDescription}>{cls.description}</Text>
+              
+              <View style={styles.bonuses}>
+                <Text style={styles.bonusText}>⚔️ ATK: +{cls.bonusAtk}</Text>
+                <Text style={styles.bonusText}>🛡️ DEF: +{cls.bonusDef}</Text>
+                <Text style={styles.bonusText}>❤️ HP: +{cls.bonusHp}</Text>
+                {cls.bonusMana > 0 && <Text style={styles.bonusText}>🔵 MP: +{cls.bonusMana}</Text>}
+              </View>
+              
+              <View style={styles.specialContainer}>
+                <Text style={styles.specialText}>✨ {cls.special}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -175,6 +177,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
     padding: 20,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   title: {
     fontSize: 28,
@@ -187,10 +195,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ccc',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   classesContainer: {
-    flex: 1,
     gap: 15,
   },
   classCard: {
@@ -198,6 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.3)',
+    minHeight: 180,
   },
   classEmoji: {
     fontSize: 32,

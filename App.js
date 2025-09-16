@@ -11,6 +11,7 @@ import QuizGame from "./QuizGame";
 import DungeonConfirmation from "./DungeonConfirmation";
 import EquipamentScreen from "./EquipamentScreen";
 import ShopScreen from "./ShopScreen";
+import QuestDiaria from "./QuestDiaria";
 
 export default function App() {
   const [location, setLocation] = useState(null);
@@ -22,6 +23,7 @@ export default function App() {
   const [showDungeonConfirm, setShowDungeonConfirm] = useState(false);
   const [showEquipament, setShowEquipament] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showQuest, setShowQuest] = useState(false); 
 
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
@@ -102,6 +104,9 @@ export default function App() {
     { rank: "C", color: "purple", difficulty: 4 },
     { rank: "B", color: "orange", difficulty: 5 },
     { rank: "A", color: "red", difficulty: 6 },
+    { rank: "S", color: "gold", difficulty: 7 },
+    { rank: "SS", color: "cyan", difficulty: 8 },
+    { rank: "SSS", color: "magenta", difficulty: 9 }
   ];
 
   const getDungeonType = () => {
@@ -112,8 +117,8 @@ export default function App() {
   };
 
   const getDungeonRewards = (dungeon) => {
-    const baseXP = dungeon.difficulty * 20;
-    const baseGold = dungeon.difficulty * 15;
+    const baseXP = dungeon.difficulty * 25;
+    const baseGold = dungeon.difficulty * 20;
     
     // Recompensas específicas por tipo de dungeon
     let itens = [];
@@ -125,7 +130,7 @@ export default function App() {
           type: 'poção', 
           name: 'Poção de Cura', 
           effect: 'cura', 
-          value: 30 
+          value: 30 + dungeon.difficulty * 5
         }
       ];
     } else if (dungeon.type === "puzzle") {
@@ -135,7 +140,7 @@ export default function App() {
           type: 'scroll', 
           name: 'Pergaminho da Sabedoria', 
           effect: 'xp', 
-          value: 15 
+          value: 15 + dungeon.difficulty * 3
         }
       ];
     } else if (dungeon.type === "quiz") {
@@ -145,7 +150,7 @@ export default function App() {
           type: 'livro', 
           name: 'Livro do Conhecimento', 
           effect: 'mana', 
-          value: 25 
+          value: 25 + dungeon.difficulty * 4
         }
       ];
     }
@@ -159,30 +164,59 @@ export default function App() {
 
   const gerarDungeons = (lat, lon) => {
     const novas = [];
-    const numDungeons = 10; // Aumentado para 10 dungeons
+    const numDungeons = 25; // Aumentado para 25 dungeons
+    
+    // Área maior para distribuição (0.1 graus = ~11km)
+    const areaLat = 0.1; // Aumentado de 0.03 para 0.1
+    const areaLon = 0.1; // Aumentado de 0.03 para 0.1
     
     for (let i = 0; i < numDungeons; i++) {
       const r = ranks[Math.floor(Math.random() * ranks.length)];
       const dungeonType = getDungeonType();
       const rewards = getDungeonRewards({ ...r, type: dungeonType });
       
-      // Aumenta a distância em 30% (de 0.015 para 0.0195)
-      const distanceMultiplier = 1.3;
-      const baseRange = 0.015 * distanceMultiplier;
+      // Distribuição mais ampla pelo mapa
+      const offsetLat = (Math.random() - 0.5) * areaLat;
+      const offsetLon = (Math.random() - 0.5) * areaLon;
       
-      novas.push({
-        id: Date.now() + i,
-        latitude: lat + (Math.random() - 0.5) * baseRange,
-        longitude: lon + (Math.random() - 0.5) * baseRange,
-        title: `Dungeon ${r.rank} - ${dungeonType}`,
-        description: `${dungeonType.charAt(0).toUpperCase() + dungeonType.slice(1)} Dungeon ${r.rank}`,
-        rank: r.rank,
-        color: r.color,
-        difficulty: r.difficulty,
-        type: dungeonType,
-        completed: false,
-        rewards: rewards
-      });
+      // Garantir que as dungeons não fiquem muito próximas umas das outras
+      let tentativas = 0;
+      let novaDungeon;
+      let muitoProxima;
+      
+      do {
+        muitoProxima = false;
+        novaDungeon = {
+          id: Date.now() + i + tentativas,
+          latitude: lat + offsetLat + (Math.random() - 0.5) * 0.005,
+          longitude: lon + offsetLon + (Math.random() - 0.5) * 0.005,
+          title: `${dungeonType === 'combat' ? '⚔️' : dungeonType === 'puzzle' ? '🧩' : '❓'} Dungeon ${r.rank}`,
+          description: `${dungeonType.charAt(0).toUpperCase() + dungeonType.slice(1)} Dungeon ${r.rank}`,
+          rank: r.rank,
+          color: r.color,
+          difficulty: r.difficulty,
+          type: dungeonType,
+          completed: false,
+          rewards: rewards
+        };
+        
+        // Verificar se está muito próxima de outras dungeons
+        for (const existingDungeon of novas) {
+          const distancia = calcularDistancia(
+            novaDungeon.latitude, novaDungeon.longitude,
+            existingDungeon.latitude, existingDungeon.longitude
+          );
+          
+          if (distancia < 0.001) { // ~100 metros
+            muitoProxima = true;
+            break;
+          }
+        }
+        
+        tentativas++;
+      } while (muitoProxima && tentativas < 10);
+      
+      novas.push(novaDungeon);
     }
     
     setDungeons(novas);
@@ -190,7 +224,12 @@ export default function App() {
 
     setTimeout(() => {
       setDungeons(prev => prev.filter(d => !novas.includes(d)));
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000); // Aumentado para 10 minutos
+  };
+
+  // Função para calcular distância entre dois pontos
+  const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+    return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
   };
 
   const handleDungeonPress = (dungeon) => {
@@ -290,8 +329,8 @@ export default function App() {
         initialRegion={{
           latitude: location.latitude,
           longitude: location.longitude,
-          latitudeDelta: 0.03,
-          longitudeDelta: 0.03,
+          latitudeDelta: 0.1, // Aumentado para ver mais dungeons
+          longitudeDelta: 0.1, // Aumentado para ver mais dungeons
         }}
         showsUserLocation={true}
         showsMyLocationButton={true}
@@ -351,6 +390,24 @@ export default function App() {
         >
           <Text style={styles.buttonText}>🔄</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.mapButton}
+          onPress={() => {
+            // Zoom out para ver mais dungeons
+            setMapKey(prev => prev + 1);
+          }}
+        >
+          <Text style={styles.buttonText}>🗺️</Text>
+        </TouchableOpacity>
+
+        {/* Botão para abrir a Quest Diária */}
+        <TouchableOpacity 
+          style={styles.questButton}
+          onPress={() => setShowQuest(true)}
+        >
+          <Text style={styles.buttonText}>📋</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.playerInfo}>
@@ -361,6 +418,7 @@ export default function App() {
         <Text style={styles.infoText}>ATQ: {player.atk}</Text>
         <Text style={styles.infoText}>DEF: {player.def}</Text>
         <Text style={styles.infoText}>💰: {player.gold}</Text>
+        <Text style={styles.infoText}>Dungeons: {dungeons.length}</Text>
       </View>
 
       <Modal visible={showClassSelection} animationType="slide">
@@ -448,6 +506,16 @@ export default function App() {
           />
         )}
       </Modal>
+
+      {/* Modal da Quest Diária */}
+      <Modal visible={showQuest} animationType="slide">
+        <QuestDiaria 
+          player={player}
+          setPlayer={setPlayer}
+          visible={showQuest}
+          onClose={() => setShowQuest(false)}
+        />
+      </Modal>
     </View>
   );
 }
@@ -508,6 +576,24 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     backgroundColor: '#FF9500',
+    padding: 15,
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  mapButton: {
+    backgroundColor: '#27ae60',
+    padding: 15,
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  questButton: {
+    backgroundColor: '#FF6B6B',
     padding: 15,
     borderRadius: 25,
     width: 50,

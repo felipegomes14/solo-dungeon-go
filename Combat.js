@@ -16,8 +16,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     'D': { name: "Esqueleto", hp: 70, atk: 15, def: 4, xp: 35, gold: 30 },
     'C': { name: "Lobisomem", hp: 90, atk: 18, def: 5, xp: 45, gold: 40 },
     'B': { name: "Vampiro", hp: 120, atk: 22, def: 6, xp: 60, gold: 50 },
-    'A': { name: "Dragão", hp: 150, atk: 25, def: 8, xp: 80, gold: 70 },
-    'S': { name: "Demônio", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
+    'A': { name: "Demônio", hp: 150, atk: 25, def: 8, xp: 80, gold: 70 },
+    'S': { name: "Dragão", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
   };
 
   // Inicializar combate
