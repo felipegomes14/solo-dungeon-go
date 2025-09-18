@@ -186,19 +186,19 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
           style={[styles.tab, selectedCategory === 'armors' && styles.activeTab]}
           onPress={() => setSelectedCategory('armors')}
         >
-          <Text style={styles.tabText}>ARMADURAS</Text>
+          <Text style={styles.tabText}>ARMADURA</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, selectedCategory === 'accessories' && styles.activeTab]}
           onPress={() => setSelectedCategory('accessories')}
         >
-          <Text style={styles.tabText}>ACESSÓRIOS</Text>
+          <Text style={styles.tabText}>ACESSÓRIO</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, selectedCategory === 'weapons' && styles.activeTab]}
           onPress={() => setSelectedCategory('weapons')}
         >
-          <Text style={styles.tabText}>ARMAS</Text>
+          <Text style={styles.tabText}>ARMA</Text>
         </TouchableOpacity>
       </View>
 
