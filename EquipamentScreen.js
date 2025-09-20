@@ -1,503 +1,947 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, ScrollView, Image } from 'react-native';
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, StyleSheet, Animated, Easing } from "react-native";
 
-export default function EquipamentInventory({ player, setPlayer, onClose }) {
+const EquipamentScreen = ({ player, setPlayer, onClose }) => {
   const [selectedTab, setSelectedTab] = useState('equipamentos');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
 
+  // Categorias de itens
+  const itemCategories = {
+    capacete: ['capacete', 'elmo', 'coroa'],
+    peitoral: ['peitoral', 'armadura', 'túnica'],
+    calças: ['calças', 'calça', 'perneiras'],
+    botas: ['botas', 'bota', 'sapatos'],
+    espada: ['espada', 'arma', 'arco', 'cajado', 'machado'],
+    amuleto: ['amuleto', 'pingente', 'colar'],
+    bracelete: ['bracelete', 'braçadeira', 'pulseira']
+  };
+
+  const animateButton = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        easing: Easing.ease,
+        useNativeDriver: true
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        easing: Easing.ease,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
+  // Função para equipar item
   const equipItem = (item) => {
-    setPlayer(prev => {
-      const currentEquipament = prev.equipament || {};
-      const inventory = [...prev.inventory];
-      
-      // Se já tinha item equipado, volta pro inventário
-      if (currentEquipament[item.type]) {
-        inventory.push(currentEquipament[item.type]);
-      }
+    const slot = Object.keys(itemCategories).find(key => 
+      itemCategories[key].includes(item.type.toLowerCase())
+    );
 
-      // Remove o item do inventário
-      const itemIndex = inventory.findIndex(i => i.id === item.id);
-      if (itemIndex !== -1) {
-        inventory.splice(itemIndex, 1);
-      }
-
-      return {
-        ...prev,
-        equipament: {
-          ...currentEquipament,
-          [item.type]: item
-        },
-        inventory,
-        atk: (prev.atk || 10) + (item.atk || 0),
-        def: (prev.def || 5) + (item.def || 0)
-      };
-    });
-  };
-
-  const unequipItem = (itemType) => {
-    setPlayer(prev => {
-      const currentEquipament = prev.equipament || {};
-      const item = currentEquipament[itemType];
-      
-      if (!item) return prev;
-
-      return {
-        ...prev,
-        equipament: {
-          ...currentEquipament,
-          [itemType]: null
-        },
-        inventory: [...prev.inventory, item],
-        atk: Math.max(10, (prev.atk || 10) - (item.atk || 0)),
-        def: Math.max(5, (prev.def || 5) - (item.def || 0))
-      };
-    });
-  };
-
-  const useItem = (item) => {
-    setPlayer(prev => {
-      let updatedPlayer = { ...prev };
-      
-      if (item.type === "poção") {
-        if (item.effect === "cura") {
-          updatedPlayer.hp = Math.min(prev.maxHp, prev.hp + item.value);
-        } else if (item.effect === "mana") {
-          updatedPlayer.mana = Math.min(prev.maxMana, prev.mana + item.value);
-        } else if (item.effect === "ataque") {
-          // Poção de força - efeito temporário (não implementado)
-          updatedPlayer.atk = prev.atk + item.value;
-        }
-      } else if (item.type === "pergaminho" && item.effect === "xp") {
-        updatedPlayer.xp = prev.xp + item.value;
-        // Verificar level up
-        if (updatedPlayer.xp >= updatedPlayer.level * 100) {
-          updatedPlayer.level += 1;
-          updatedPlayer.xp = 0;
-          updatedPlayer.maxHp += 20;
-          updatedPlayer.hp = updatedPlayer.maxHp;
-          updatedPlayer.maxMana += 10;
-          updatedPlayer.mana = updatedPlayer.maxMana;
-          updatedPlayer.atk += 5;
-          updatedPlayer.def += 2;
-        }
-      }
-      
-      // Remove o item usado do inventário
-      updatedPlayer.inventory = prev.inventory.filter(i => i.id !== item.id);
-      
-      return updatedPlayer;
-    });
-  };
-
-  const getItemIcon = (type) => {
-    switch (type) {
-      case 'capacete': return '🪖';
-      case 'peitoral': return '🛡️';
-      case 'calças': return '👖';
-      case 'botas': return '👢';
-      case 'espada': return '⚔️';
-      case 'cajado': return '🪄';
-      case 'amuleto': return '📿';
-      case 'bracelete': return '💍';
-      case 'poção': return '🧪';
-      case 'pergaminho': return '📜';
-      default: return '🎒';
+    if (!slot) {
+      Alert.alert("❌ Erro", "Este item não pode ser equipado em nenhum slot!");
+      return;
     }
+
+    animateButton();
+
+    setPlayer(prev => {
+      const currentEquipament = { ...prev.equipament };
+      const currentInventory = [...prev.inventory];
+      
+      // Remove o item do inventário
+      const itemIndex = currentInventory.findIndex(invItem => invItem.id === item.id);
+      if (itemIndex !== -1) {
+        currentInventory.splice(itemIndex, 1);
+      }
+
+      // Se já tinha item equipado, volta pro inventário
+      if (currentEquipament[slot]) {
+        currentInventory.push(currentEquipament[slot]);
+      }
+
+      // Equipa o novo item
+      currentEquipament[slot] = item;
+
+      // Aplica os bônus do item
+      const newStats = {
+        hp: prev.maxHp,
+        maxHp: prev.maxHp,
+        mana: prev.maxMana,
+        maxMana: prev.maxMana,
+        atk: prev.atk,
+        def: prev.def
+      };
+
+      // Adiciona bônus do novo item
+      if (item.bonus) {
+        Object.keys(item.bonus).forEach(stat => {
+          newStats[stat] += item.bonus[stat];
+          if (stat === 'maxHp') newStats.hp += item.bonus[stat];
+          if (stat === 'maxMana') newStats.mana += item.bonus[stat];
+        });
+      }
+
+      // Remove bônus do item anterior (se existia)
+      if (prev.equipament[slot] && prev.equipament[slot].bonus) {
+        Object.keys(prev.equipament[slot].bonus).forEach(stat => {
+          newStats[stat] -= prev.equipament[slot].bonus[stat];
+          if (stat === 'maxHp') newStats.hp = Math.max(1, newStats.hp - prev.equipament[slot].bonus[stat]);
+          if (stat === 'maxMana') newStats.mana = Math.max(0, newStats.mana - prev.equipament[slot].bonus[stat]);
+        });
+      }
+
+      return {
+        ...prev,
+        equipament: currentEquipament,
+        inventory: currentInventory,
+        ...newStats
+      };
+    });
+
+    setShowItemModal(false);
+    Alert.alert("✅ Sucesso", `${item.name} equipado!`);
   };
 
-  const renderEquipamentSlot = (type, label) => {
-    const equipament = player.equipament || {};
-    const item = equipament[type];
+  // Função para desequipar item
+  const unequipItem = (slot) => {
+    if (!player.equipament[slot]) return;
 
+    animateButton();
+
+    setPlayer(prev => {
+      const currentEquipament = { ...prev.equipament };
+      const currentInventory = [...prev.inventory];
+      const item = currentEquipament[slot];
+
+      // Remove o item do slot
+      currentInventory.push(item);
+      delete currentEquipament[slot];
+
+      // Remove os bônus do item
+      const newStats = {
+        hp: prev.hp,
+        maxHp: prev.maxHp,
+        mana: prev.mana,
+        maxMana: prev.maxMana,
+        atk: prev.atk,
+        def: prev.def
+      };
+
+      if (item.bonus) {
+        Object.keys(item.bonus).forEach(stat => {
+          newStats[stat] -= item.bonus[stat];
+          if (stat === 'maxHp') newStats.hp = Math.max(1, newStats.hp - item.bonus[stat]);
+          if (stat === 'maxMana') newStats.mana = Math.max(0, newStats.mana - item.bonus[stat]);
+        });
+      }
+
+      return {
+        ...prev,
+        equipament: currentEquipament,
+        inventory: currentInventory,
+        ...newStats
+      };
+    });
+
+    Alert.alert("✅ Item desequipado!", "Item movido para o inventário.");
+  };
+
+  const getRarityColor = (item) => {
+    if (!item || !item.bonus) return '#95a5a6';
+    
+    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + val, 0);
+    if (totalBonus > 80) return '#f39c12'; // Lendário
+    if (totalBonus > 50) return '#9b59b6'; // Épico
+    if (totalBonus > 30) return '#3498db'; // Raro
+    return '#95a5a6'; // Comum
+  };
+
+  const getRarityName = (item) => {
+    if (!item || !item.bonus) return 'Comum';
+    
+    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + val, 0);
+    if (totalBonus > 80) return 'Lendário';
+    if (totalBonus > 50) return 'Épico';
+    if (totalBonus > 30) return 'Raro';
+    return 'Comum';
+  };
+
+  // Renderizar slot de equipamento
+  const renderEquipamentSlot = (slot, label, emoji) => {
+    const item = player.equipament[slot];
+    const rarityColor = item ? getRarityColor(item) : '#4B0082';
+    
     return (
-      <View style={styles.equipamentSlot}>
-        <Text style={styles.slotLabel}>{getItemIcon(type)} {label}</Text>
+      <Animated.View 
+        style={[
+          styles.equipamentSlot,
+          item && { borderLeftColor: rarityColor },
+          !item && styles.emptySlotStyle
+        ]}
+      >
+        <View style={styles.slotHeader}>
+          <Text style={styles.slotEmoji}>{emoji}</Text>
+          <Text style={styles.slotLabel}>{label}</Text>
+        </View>
+        
         {item ? (
           <TouchableOpacity 
-            style={styles.equippedItem}
-            onPress={() => unequipItem(type)}
+            style={styles.itemContent}
+            onPress={() => unequipItem(slot)}
+            onLongPress={() => setSelectedItem(item)}
           >
-            <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemStats}>⚔️ +{item.atk} 🛡️ +{item.def}</Text>
-            <Text style={styles.unequipText}>Clique para desequipar</Text>
+            <Text style={[styles.itemName, { color: rarityColor }]}>
+              {item.name}
+            </Text>
+            <Text style={styles.itemRarity}>{getRarityName(item)}</Text>
+            
+            {item.bonus && (
+              <View style={styles.bonusesContainer}>
+                {Object.entries(item.bonus).map(([stat, value]) => (
+                  <View key={stat} style={styles.bonusBadge}>
+                    <Text style={styles.bonusText}>
+                      {getStatIcon(stat)}+{value}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            <Text style={styles.unequipText}>Tocar para desequipar</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.emptySlot}>
-            <Text style={styles.emptyText}>Vazio</Text>
+          <View style={styles.emptyContent}>
+            <Text style={styles.emptySlot}>Slot Vazio</Text>
             <Text style={styles.emptySubtext}>Equipe um item {label.toLowerCase()}</Text>
           </View>
         )}
-      </View>
+      </Animated.View>
     );
   };
 
-  const renderInventoryItem = ({ item }) => (
-    <View style={[styles.item, !item.atk && styles.consumableItem]}>
-      <Text style={styles.itemIcon}>{getItemIcon(item.type)}</Text>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemType}>{item.type}</Text>
-        {item.atk && <Text style={styles.itemStats}>⚔️ +{item.atk} 🛡️ +{item.def}</Text>}
-        {item.effect && <Text style={styles.itemEffect}>Efeito: {getEffectName(item.effect)} +{item.value}</Text>}
-      </View>
-      
-      {item.atk ? (
-        <TouchableOpacity 
-          style={styles.equipButton}
-          onPress={() => equipItem(item)}
-        >
-          <Text style={styles.buttonText}>Equipar</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={styles.useButton}
-          onPress={() => useItem(item)}
-        >
-          <Text style={styles.buttonText}>Usar</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  const getEffectName = (effect) => {
-    switch (effect) {
-      case 'cura': return 'Vida';
-      case 'mana': return 'Mana';
-      case 'ataque': return 'Ataque';
-      case 'xp': return 'Experiência';
-      default: return effect;
-    }
+  // Helper functions
+  const getStatIcon = (stat) => {
+    const icons = {
+      atk: '⚔️',
+      def: '🛡️',
+      maxHp: '❤️',
+      maxMana: '🔵',
+      hp: '❤️',
+      mana: '🔵'
+    };
+    return icons[stat] || '✨';
   };
+
+  const getStatName = (stat) => {
+    const names = {
+      atk: 'ATQ',
+      def: 'DEF',
+      maxHp: 'Vida',
+      maxMana: 'Mana',
+      hp: 'Vida',
+      mana: 'Mana'
+    };
+    return names[stat] || stat;
+  };
+
+  // Renderizar item do inventário
+  const renderInventoryItem = (item, index) => {
+    const slot = Object.keys(itemCategories).find(key => 
+      itemCategories[key].includes(item.type.toLowerCase())
+    );
+    const rarityColor = getRarityColor(item);
+
+    return (
+      <TouchableOpacity
+        key={index}
+        style={[styles.inventoryItem, { borderLeftColor: rarityColor }]}
+        onPress={() => {
+          setSelectedItem(item);
+          setShowItemModal(true);
+        }}
+      >
+        <View style={styles.inventoryHeader}>
+          <Text style={styles.itemEmoji}>{item.emoji || '📦'}</Text>
+          <View style={styles.inventoryInfo}>
+            <Text style={[styles.itemName, { color: rarityColor }]}>
+              {item.name}
+            </Text>
+            <Text style={styles.itemType}>{item.type} • {getRarityName(item)}</Text>
+          </View>
+        </View>
+
+        {item.bonus && (
+          <View style={styles.bonusesContainer}>
+            {Object.entries(item.bonus).map(([stat, value]) => (
+              <View key={stat} style={styles.bonusBadge}>
+                <Text style={styles.bonusText}>
+                  {getStatIcon(stat)}+{value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {item.value && (
+          <View style={styles.effectBadge}>
+            <Text style={styles.effectText}>
+              {item.effect === 'cura' ? '❤️ +' + item.value + ' Vida' : ''}
+              {item.effect === 'mana' ? '🔵 +' + item.value + ' Mana' : ''}
+            </Text>
+          </View>
+        )}
+
+        <Text style={styles.equipText}>Tocar para equipar</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const totalBonus = () => {
+    let bonus = { atk: 0, def: 0, maxHp: 0, maxMana: 0 };
+    Object.values(player.equipament).forEach(item => {
+      if (item && item.bonus) {
+        Object.entries(item.bonus).forEach(([stat, value]) => {
+          bonus[stat] += value;
+        });
+      }
+    });
+    return bonus;
+  };
+
+  const equippedBonus = totalBonus();
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>🎒 INVENTÁRIO</Text>
-        <Text style={styles.stats}>
-          ⚔️ {player.atk}  🛡️ {player.def}  💰 {player.gold}  🎒 {player.inventory.length}
-        </Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>🎒 INVENTÁRIO</Text>
+          <Text style={styles.subtitle}>Gerenciar Equipamentos</Text>
+        </View>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Text style={styles.closeText}>✕</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.tabs}>
-        <TouchableOpacity 
-          style={[styles.tab, selectedTab === 'inventory' && styles.activeTab]}
-          onPress={() => setSelectedTab('inventory')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'inventory' && styles.activeTabText]}>CONSUMÍVEIS</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, selectedTab === 'equipamentos' && styles.activeTab]}
-          onPress={() => setSelectedTab('equipamentos')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'equipamentos' && styles.activeTabText]}>EQUIPAMENTOS</Text>
-        </TouchableOpacity>
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <View style={styles.tabs}>
+          <TouchableOpacity 
+            style={[styles.tab, selectedTab === 'equipamentos' && styles.activeTab]}
+            onPress={() => setSelectedTab('equipamentos')}
+          >
+            <Text style={[
+              styles.tabText,
+              selectedTab === 'equipamentos' && styles.activeTabText
+            ]}>
+              EQUIPAMENTOS
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, selectedTab === 'inventario' && styles.activeTab]}
+            onPress={() => setSelectedTab('inventario')}
+          >
+            <Text style={[
+              styles.tabText,
+              selectedTab === 'inventario' && styles.activeTabText
+            ]}>
+              INVENTÁRIO ({player.inventory.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {selectedTab === 'equipamentos' ? (
         <ScrollView style={styles.content}>
           <Text style={styles.sectionTitle}>EQUIPAMENTOS EQUIPADOS</Text>
+          
           <View style={styles.equipamentGrid}>
+            {/* Coluna 1 */}
             <View style={styles.equipamentColumn}>
-              {renderEquipamentSlot('capacete', 'Capacete')}
-              {renderEquipamentSlot('peitoral', 'Peitoral')}
-              {renderEquipamentSlot('calças', 'Calças')}
-              {renderEquipamentSlot('botas', 'Botas')}
+              {renderEquipamentSlot('capacete', 'Capacete', '⛑️')}
+              {renderEquipamentSlot('peitoral', 'Peitoral', '🥋')}
+              {renderEquipamentSlot('calças', 'Calças', '👖')}
+              {renderEquipamentSlot('botas', 'Botas', '👢')}
             </View>
+            
+            {/* Coluna 2 */}
             <View style={styles.equipamentColumn}>
-              {renderEquipamentSlot('espada', 'Arma')}
-              {renderEquipamentSlot('amuleto', 'Amuleto')}
-              {renderEquipamentSlot('bracelete', 'Bracelete')}
+              {renderEquipamentSlot('espada', 'Arma', '⚔️')}
+              {renderEquipamentSlot('amuleto', 'Amuleto', '🔮')}
+              {renderEquipamentSlot('bracelete', 'Bracelete', '📿')}
+              
+              {/* Status do Jogador */}
               <View style={styles.playerStats}>
-                <Text style={styles.statsTitle}>ATRIBUTOS</Text>
-                <Text style={styles.stat}>⚔️ Ataque: {player.atk}</Text>
-                <Text style={styles.stat}>🛡️ Defesa: {player.def}</Text>
-                <Text style={styles.stat}>❤️ Vida: {player.hp}/{player.maxHp}</Text>
-                <Text style={styles.stat}>🔵 Mana: {player.mana}/{player.maxMana}</Text>
+                <Text style={styles.statsTitle}>📊 ATRIBUTOS DO PERSONAGEM</Text>
+                
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>⚔️</Text>
+                  <Text style={styles.statLabel}>Ataque:</Text>
+                  <Text style={styles.statValue}>{player.atk}</Text>
+                  {equippedBonus.atk > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.atk}</Text>
+                  )}
+                </View>
+                
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>🛡️</Text>
+                  <Text style={styles.statLabel}>Defesa:</Text>
+                  <Text style={styles.statValue}>{player.def}</Text>
+                  {equippedBonus.def > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.def}</Text>
+                  )}
+                </View>
+                
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>❤️</Text>
+                  <Text style={styles.statLabel}>Vida:</Text>
+                  <Text style={styles.statValue}>{player.hp}/{player.maxHp}</Text>
+                  {equippedBonus.maxHp > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.maxHp}</Text>
+                  )}
+                </View>
+                
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>🔵</Text>
+                  <Text style={styles.statLabel}>Mana:</Text>
+                  <Text style={styles.statValue}>{player.mana}/{player.maxMana}</Text>
+                  {equippedBonus.maxMana > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.maxMana}</Text>
+                  )}
+                </View>
+                
+                <View style={styles.totalBonus}>
+                  <Text style={styles.totalBonusText}>
+                    Bônus Total: +{Object.values(equippedBonus).reduce((a, b) => a + b, 0)}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-
-          <Text style={styles.sectionTitle}>SEUS EQUIPAMENTOS</Text>
-          <FlatList
-            data={player.inventory.filter(item => item.atk)}
-            renderItem={({ item }) => (
-              <View style={styles.equipItem}>
-                <Text style={styles.itemIcon}>{getItemIcon(item.type)}</Text>
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemType}>{item.type}</Text>
-                  <Text style={styles.itemStats}>⚔️ +{item.atk} 🛡️ +{item.def}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.equipButton}
-                  onPress={() => equipItem(item)}
-                >
-                  <Text style={styles.buttonText}>Equipar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            keyExtractor={(item) => item.id.toString()}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <Text style={styles.empty}>Nenhum equipamento no inventário!</Text>
-            }
-          />
         </ScrollView>
       ) : (
-        <FlatList
-          style={styles.content}
-          data={player.inventory.filter(item => !item.atk)}
-          renderItem={renderInventoryItem}
-          keyExtractor={(item) => item.id.toString()}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.empty}>Nenhum item consumível no inventário!</Text>
+        <ScrollView style={styles.content}>
+          <Text style={styles.sectionTitle}>ITENS DO INVENTÁRIO</Text>
+          
+          {player.inventory.length === 0 ? (
+            <View style={styles.emptyInventory}>
+              <Text style={styles.emptyEmoji}>📦</Text>
+              <Text style={styles.emptyText}>Inventário vazio!</Text>
               <Text style={styles.emptySubtext}>Visite a loja para adquirir itens</Text>
             </View>
-          }
-        />
+          ) : (
+            <View style={styles.inventoryGrid}>
+              {player.inventory.map((item, index) => renderInventoryItem(item, index))}
+            </View>
+          )}
+        </ScrollView>
       )}
 
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeButtonText}>✕ FECHAR</Text>
-      </TouchableOpacity>
+      {/* Modal de Item */}
+      <Modal visible={showItemModal} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            {selectedItem && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalEmoji}>{selectedItem.emoji || '📦'}</Text>
+                  <View>
+                    <Text style={[styles.modalTitle, { color: getRarityColor(selectedItem) }]}>
+                      {selectedItem.name}
+                    </Text>
+                    <Text style={styles.modalType}>{selectedItem.type} • {getRarityName(selectedItem)}</Text>
+                  </View>
+                </View>
+
+                {selectedItem.bonus && (
+                  <View style={styles.modalBonuses}>
+                    <Text style={styles.bonusTitle}>🎯 BÔNUS:</Text>
+                    {Object.entries(selectedItem.bonus).map(([stat, value]) => (
+                      <View key={stat} style={styles.modalBonusRow}>
+                        <Text style={styles.modalBonusIcon}>{getStatIcon(stat)}</Text>
+                        <Text style={styles.modalBonusText}>+{value} {getStatName(stat)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {selectedItem.value && (
+                  <View style={styles.modalEffect}>
+                    <Text style={styles.effectTitle}>✨ EFEITO:</Text>
+                    <Text style={styles.effectText}>
+                      {selectedItem.effect === 'cura' ? 'Restaura ' + selectedItem.value + ' de Vida' : ''}
+                      {selectedItem.effect === 'mana' ? 'Restaura ' + selectedItem.value + ' de Mana' : ''}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity 
+                    style={styles.equipButton}
+                    onPress={() => equipItem(selectedItem)}
+                  >
+                    <Text style={styles.buttonText}>✅ EQUIPAR</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => setShowItemModal(false)}
+                  >
+                    <Text style={styles.buttonText}>❌ CANCELAR</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    padding: 15,
+  container: { 
+    flex: 1, 
+    backgroundColor: '#0f0f1f' 
   },
   header: {
-    backgroundColor: 'rgba(34, 40, 75, 0.8)',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: '#4cc9f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(45, 45, 77, 0.8)',
+    borderBottomWidth: 2,
+    borderBottomColor: '#4B0082',
+    shadowColor: '#9370DB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerContent: {
+    flex: 1,
   },
   title: {
+    color: '#FFD700',
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#ffffff',
-    marginBottom: 10,
-    textShadowColor: '#4cc9f0',
+    marginBottom: 4,
+    textShadowColor: 'rgba(255, 215, 0, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
-  stats: {
+  subtitle: {
+    color: '#00BFFF',
     fontSize: 14,
-    textAlign: 'center',
-    color: '#a0a0c0',
-    fontWeight: '600',
+    fontWeight: '500',
+  },
+  closeButton: { 
+    padding: 10,
+    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e74c3c'
+  },
+  closeText: { 
+    color: 'white', 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  tabsContainer: {
+    backgroundColor: 'rgba(45, 45, 77, 0.6)',
+    padding: 3,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4B0082',
   },
   tabs: {
     flexDirection: 'row',
-    marginBottom: 15,
-    backgroundColor: 'rgba(34, 40, 75, 0.6)',
-    borderRadius: 10,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: '#4cc9f0',
   },
   tab: {
     flex: 1,
-    padding: 12,
+    padding: 15,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: '#4361ee',
+    backgroundColor: '#4B0082',
+    shadowColor: '#9370DB',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 6,
   },
   tabText: {
+    color: '#BDC3C7',
     fontWeight: 'bold',
-    color: '#a0a0c0',
     fontSize: 12,
   },
   activeTabText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(255, 255, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
   },
   content: {
     flex: 1,
-    marginBottom: 15,
+    padding: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    color: '#00ff88',
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#4cc9f0',
+    marginBottom: 20,
     textAlign: 'center',
-    backgroundColor: 'rgba(34, 40, 75, 0.5)',
-    padding: 8,
-    borderRadius: 8,
+    textShadowColor: 'rgba(0, 255, 136, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
   equipamentGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: 16,
   },
   equipamentColumn: {
     width: '48%',
+    gap: 12,
   },
   equipamentSlot: {
-    marginBottom: 12,
+    backgroundColor: 'rgba(45, 45, 77, 0.7)',
+    padding: 16,
+    borderRadius: 16,
+    borderLeftWidth: 6,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    minHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  slotLabel: {
-    color: '#ffffff',
-    fontSize: 12,
-    marginBottom: 5,
-    fontWeight: '600',
+  emptySlotStyle: {
+    borderLeftColor: '#4B0082',
   },
-  equippedItem: {
-    backgroundColor: 'rgba(46, 204, 113, 0.2)',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#2ecc71',
-  },
-  emptySlot: {
-    backgroundColor: 'rgba(108, 122, 137, 0.2)',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#6c7a89',
-    alignItems: 'center',
-    minHeight: 80,
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: '#a0a0c0',
-    fontWeight: 'bold',
-  },
-  emptySubtext: {
-    color: '#6c7a89',
-    fontSize: 10,
-    marginTop: 4,
-  },
-  unequipText: {
-    color: '#e74c3c',
-    fontSize: 10,
-    marginTop: 5,
-    fontStyle: 'italic',
-  },
-  item: {
-    backgroundColor: 'rgba(34, 40, 75, 0.6)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
+  slotHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#4cc9f0',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: 8,
   },
-  consumableItem: {
-    borderColor: '#9b59b6',
+  slotEmoji: {
+    fontSize: 20,
+    marginRight: 8,
   },
-  itemIcon: {
-    fontSize: 24,
-    marginRight: 12,
-    width: 30,
-    textAlign: 'center',
+  slotLabel: {
+    color: '#3498db',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
-  itemInfo: {
+  itemContent: {
     flex: 1,
   },
   itemName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 2,
-  },
-  itemType: {
-    fontSize: 12,
-    color: '#a0a0c0',
     marginBottom: 4,
-    textTransform: 'capitalize',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  itemStats: {
-    fontSize: 12,
-    color: '#2ecc71',
-    marginBottom: 2,
+  itemRarity: {
+    color: '#95a5a6',
+    fontSize: 10,
+    fontWeight: '500',
+    marginBottom: 8,
   },
-  itemEffect: {
-    fontSize: 11,
-    color: '#9b59b6',
-  },
-  equipItem: {
-    backgroundColor: 'rgba(34, 40, 75, 0.6)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
+  bonusesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 8,
+  },
+  bonusBadge: {
+    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4cc9f0',
+    borderColor: 'rgba(46, 204, 113, 0.3)',
   },
-  itemDetails: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  equipButton: {
-    backgroundColor: '#4361ee',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  useButton: {
-    backgroundColor: '#9b59b6',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  buttonText: {
-    color: 'white',
+  bonusText: {
+    color: '#2ecc71',
+    fontSize: 10,
     fontWeight: 'bold',
+  },
+  unequipText: {
+    color: '#e74c3c',
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  emptyContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptySlot: {
+    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptySubtext: {
+    color: 'rgba(255, 255, 255, 0.3)',
+    fontSize: 10,
+    marginTop: 2,
   },
   playerStats: {
-    backgroundColor: 'rgba(34, 40, 75, 0.8)',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#4cc9f0',
-    marginTop: 10,
+    backgroundColor: 'rgba(45, 45, 77, 0.8)',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#4B0082',
   },
   statsTitle: {
-    color: '#4cc9f0',
+    color: '#f39c12',
     fontWeight: 'bold',
+    marginBottom: 12,
     textAlign: 'center',
-    marginBottom: 10,
-    fontSize: 14,
-  },
-  stat: {
-    color: '#ffffff',
-    marginBottom: 5,
     fontSize: 12,
   },
-  emptyContainer: {
+  statRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 30,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  empty: {
+  statIcon: {
+    fontSize: 14,
+    marginRight: 8,
+    width: 20,
     textAlign: 'center',
-    color: '#a0a0c0',
-    fontSize: 16,
-    marginBottom: 10,
   },
-  closeButton: {
+  statLabel: {
+    color: '#BDC3C7',
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+  },
+  statValue: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 4,
+  },
+  statBonus: {
+    color: '#2ecc71',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  totalBonus: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  totalBonusText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  inventoryGrid: {
+    gap: 12,
+  },
+  inventoryItem: {
+    backgroundColor: 'rgba(45, 45, 77, 0.7)',
+    padding: 16,
+    borderRadius: 16,
+    borderLeftWidth: 6,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inventoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  itemEmoji: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  inventoryInfo: {
+    flex: 1,
+  },
+  itemType: {
+    color: '#95a5a6',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  effectBadge: {
+    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  effectText: {
+    color: '#FF6B6B',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  equipText: {
+    color: '#3498db',
+    fontSize: 10,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  emptyInventory: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    backgroundColor: 'rgba(45, 45, 77, 0.5)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#4B0082',
+    borderStyle: 'dashed',
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: '#BDC3C7',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: '#95a5a6',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  modalContent: {
+    backgroundColor: '#2d2d4d',
+    padding: 24,
+    borderRadius: 20,
+    width: '85%',
+    borderWidth: 2,
+    borderColor: '#4B0082',
+    shadowColor: '#9370DB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalEmoji: {
+    fontSize: 36,
+    marginRight: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  modalType: {
+    color: '#95a5a6',
+    fontSize: 12,
+  },
+  modalBonuses: {
+    marginBottom: 16,
+  },
+  bonusTitle: {
+    color: '#2ecc71',
+    fontWeight: 'bold',
+    marginBottom: 12,
+    fontSize: 14,
+  },
+  modalBonusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingLeft: 8,
+  },
+  modalBonusIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    width: 24,
+  },
+  modalBonusText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalEffect: {
+    marginBottom: 24,
+  },
+  effectTitle: {
+    color: '#FF6B6B',
+    fontWeight: 'bold',
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  equipButton: {
+    flex: 1,
+    backgroundColor: '#27ae60',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2ecc71',
+  },
+  cancelButton: {
+    flex: 1,
     backgroundColor: '#e74c3c',
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#c0392b',
   },
-  closeButtonText: {
-    color: 'white',
+  buttonText: {
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 12,
   },
 });
+
+export default EquipamentScreen;
