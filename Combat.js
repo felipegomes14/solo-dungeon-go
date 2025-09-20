@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 
-export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, onComplete }) {
+export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, onComplete, onCombatStart }) {
   const [monsters, setMonsters] = useState([]);
   const [currentMonsterIndex, setCurrentMonsterIndex] = useState(0);
   const [combatLog, setCombatLog] = useState([]);
@@ -20,7 +20,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     'S': { name: "Dragão", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
   };
 
-  // Inicializar combate
   useEffect(() => {
     if (dungeon) {
       const monsterCount = Math.min(3, 1 + Math.floor(dungeon.difficulty / 2));
@@ -42,6 +41,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       setCombatStatus('ongoing');
       setIsProcessing(false);
       setIsDefending(false);
+      
+      onCombatStart();
     }
   }, [dungeon]);
 
@@ -56,7 +57,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     
     setIsProcessing(true);
     
-    // Garantir que os valores são números
     const playerAtk = Number(player.atk) || 10;
     const monsterDef = Number(currentMonster.def) || 2;
     
@@ -74,7 +74,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       `⚔️ Você causou ${actualDamage} de dano!`
     );
 
-    // Atualiza monstro
     const newMonsters = monsters.map((monster, index) => 
       index === currentMonsterIndex 
         ? { ...monster, currentHp: newMonsterHp }
@@ -126,7 +125,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
     setIsProcessing(true);
     
-    // Atualiza mana primeiro
     setPlayer(prev => ({
       ...prev,
       mana: Math.max(0, (Number(prev.mana) || 0) - 20)
@@ -223,7 +221,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     
     ganharXp(totalXp);
     
-    // Atualiza o player após a vitória
     setTimeout(() => {
       setPlayer(prev => ({
         ...prev,
@@ -239,18 +236,15 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
     setIsProcessing(true);
 
-    // CORREÇÃO: Verificar tanto 'potion' quanto 'poção'
     if (item.type === 'potion' || item.type === 'poção') {
       const healValue = Number(item.value) || 30;
       
-      // CORREÇÃO: Usar effect para determinar o tipo de cura
       if (item.effect === 'heal' || item.effect === 'cura') {
         setPlayer(prev => {
           const currentHp = Number(prev.hp) || 0;
           const maxHp = Number(prev.maxHp) || 100;
           const newHp = Math.min(maxHp, currentHp + healValue);
           
-          // Remover o item usado do inventário
           const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
           const newInventory = [...prev.inventory];
           if (itemIndex !== -1) {
@@ -271,7 +265,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
           const maxMana = Number(prev.maxMana) || 50;
           const newMana = Math.min(maxMana, currentMana + healValue);
           
-          // Remover o item usado do inventário
           const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
           const newInventory = [...prev.inventory];
           if (itemIndex !== -1) {
@@ -291,7 +284,6 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       addToLog(`📜 ${item.name} usado! +${xpValue} XP`);
       ganharXp(xpValue);
       setPlayer(prev => {
-        // Remover o item usado do inventário
         const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
         const newInventory = [...prev.inventory];
         if (itemIndex !== -1) {
@@ -468,14 +460,14 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   defendButton: {
-    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+    backgroundColor: '#3498db',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
     marginBottom: 8
   },
   skillButton: {
-    backgroundColor: 'rgba(155, 89, 182, 0.8)',
+    backgroundColor: '#9b59b6',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
@@ -496,7 +488,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   itemButton: {
-    backgroundColor: 'rgba(39, 174, 96, 0.8)',
+    backgroundColor: '#27ae60',
     padding: 8,
     borderRadius: 5,
     marginBottom: 4
@@ -507,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   fleeButton: {
-    backgroundColor: 'rgba(243, 156, 18, 0.8)',
+    backgroundColor: '#f39c12',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center'
@@ -518,7 +510,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   closeButton: {
-    backgroundColor: 'rgba(127, 140, 141, 0.8)',
+    backgroundColor: '#7f8c8d',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
