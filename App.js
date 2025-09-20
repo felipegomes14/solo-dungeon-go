@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Alert, Modal, Text, TouchableOpacity } from "react-native";
-import MapView, { Marker } from "react-native-maps";
-import * as Location from "expo-location";
+import {
+  StyleSheet,
+  View,
+  Alert,
+  Modal,
+  Text,
+  TouchableOpacity,
+  Platform,
+  Dimensions,
+  ScrollView
+} from "react-native";
 
 // Importe os componentes da pasta raiz
 import ClassSelection from "./ClassSelection";
@@ -12,6 +20,11 @@ import DungeonConfirmation from "./DungeonConfirmation";
 import EquipamentScreen from "./EquipamentScreen";
 import ShopScreen from "./ShopScreen";
 import QuestDiaria from "./QuestDiaria";
+import ErrorBoundary from './ErrorBoundary';
+
+// Importar componentes nativos do React Native Maps
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
 
 export default function App() {
   const [location, setLocation] = useState(null);
@@ -23,7 +36,8 @@ export default function App() {
   const [showDungeonConfirm, setShowDungeonConfirm] = useState(false);
   const [showEquipament, setShowEquipament] = useState(false);
   const [showShop, setShowShop] = useState(false);
-  const [showQuest, setShowQuest] = useState(false); 
+  const [showQuest, setShowQuest] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
@@ -43,23 +57,31 @@ export default function App() {
     mana: 50,
     maxMana: 50,
     inventory: [
-      { 
-        id: 1, 
-        type: "poção", 
-        name: "Poção de Cura", 
-        effect: "cura", 
-        value: 30 
+      {
+        id: 1,
+        type: "poção",
+        name: "Poção de Cura",
+        effect: "cura",
+        value: 30
       },
-      { 
-        id: 2, 
-        type: "poção", 
-        name: "Poção de Mana", 
-        effect: "mana", 
-        value: 20 
+      {
+        id: 2,
+        type: "poção",
+        name: "Poção de Mana",
+        effect: "mana",
+        value: 20
       }
     ],
     equipament: {}
   });
+
+  // Coordenadas padrão para fallback
+  const defaultCoords = {
+    latitude: -23.5505,
+    longitude: -46.6333,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1
+  };
 
   // Regeneração de HP
   useEffect(() => {
@@ -76,24 +98,37 @@ export default function App() {
   }, [player.hp, player.maxHp, currentDungeon, currentGame]);
 
   useEffect(() => {
+    // Solicitar permissão de localização
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permissão negada", "O app precisa de acesso ao GPS!");
-        return;
-      }
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permissão negada", "O app precisa de acesso ao GPS! Usando localização padrão.");
+          setLocation({ coords: defaultCoords });
+          gerarDungeons(defaultCoords.latitude, defaultCoords.longitude);
+          setIsLoading(false);
+          return;
+        }
 
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      setLocation(pos.coords);
-      gerarDungeons(pos.coords.latitude, pos.coords.longitude);
-
-      const dungeonInterval = setInterval(() => {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setLocation(pos);
         gerarDungeons(pos.coords.latitude, pos.coords.longitude);
-      }, 3 * 60 * 1000);
+        setIsLoading(false);
 
-      return () => clearInterval(dungeonInterval);
+        const dungeonInterval = setInterval(() => {
+          gerarDungeons(pos.coords.latitude, pos.coords.longitude);
+        }, 3 * 60 * 1000);
+
+        return () => clearInterval(dungeonInterval);
+      } catch (error) {
+        console.error("Erro ao obter localização:", error);
+        Alert.alert("Erro", "Não foi possível obter a localização. Usando localização padrão.");
+        setLocation({ coords: defaultCoords });
+        gerarDungeons(defaultCoords.latitude, defaultCoords.longitude);
+        setIsLoading(false);
+      }
     })();
   }, []);
 
@@ -119,42 +154,41 @@ export default function App() {
   const getDungeonRewards = (dungeon) => {
     const baseXP = dungeon.difficulty * 25;
     const baseGold = dungeon.difficulty * 20;
-    
-    // Recompensas específicas por tipo de dungeon
+
     let itens = [];
-    
+
     if (dungeon.type === "combat") {
       itens = [
-        { 
-          id: Date.now() + 1, 
-          type: 'poção', 
-          name: 'Poção de Cura', 
-          effect: 'cura', 
+        {
+          id: Date.now() + 1,
+          type: 'poção',
+          name: 'Poção de Cura',
+          effect: 'cura',
           value: 30 + dungeon.difficulty * 5
         }
       ];
     } else if (dungeon.type === "puzzle") {
       itens = [
-        { 
-          id: Date.now() + 1, 
-          type: 'scroll', 
-          name: 'Pergaminho da Sabedoria', 
-          effect: 'xp', 
+        {
+          id: Date.now() + 1,
+          type: 'scroll',
+          name: 'Pergaminho da Sabedoria',
+          effect: 'xp',
           value: 15 + dungeon.difficulty * 3
         }
       ];
     } else if (dungeon.type === "quiz") {
       itens = [
-        { 
-          id: Date.now() + 1, 
-          type: 'livro', 
-          name: 'Livro do Conhecimento', 
-          effect: 'mana', 
+        {
+          id: Date.now() + 1,
+          type: 'livro',
+          name: 'Livro do Conhecimento',
+          effect: 'mana',
           value: 25 + dungeon.difficulty * 4
         }
       ];
     }
-    
+
     return {
       xp: baseXP,
       gold: baseGold,
@@ -164,72 +198,42 @@ export default function App() {
 
   const gerarDungeons = (lat, lon) => {
     const novas = [];
-    const numDungeons = 25; // Aumentado para 25 dungeons
-    
-    // Área maior para distribuição (0.1 graus = ~11km)
-    const areaLat = 0.1; // Aumentado de 0.03 para 0.1
-    const areaLon = 0.1; // Aumentado de 0.03 para 0.1
-    
+    const numDungeons = 25;
+
     for (let i = 0; i < numDungeons; i++) {
       const r = ranks[Math.floor(Math.random() * ranks.length)];
       const dungeonType = getDungeonType();
       const rewards = getDungeonRewards({ ...r, type: dungeonType });
-      
-      // Distribuição mais ampla pelo mapa
-      const offsetLat = (Math.random() - 0.5) * areaLat;
-      const offsetLon = (Math.random() - 0.5) * areaLon;
-      
-      // Garantir que as dungeons não fiquem muito próximas umas das outras
-      let tentativas = 0;
-      let novaDungeon;
-      let muitoProxima;
-      
-      do {
-        muitoProxima = false;
-        novaDungeon = {
-          id: Date.now() + i + tentativas,
-          latitude: lat + offsetLat + (Math.random() - 0.5) * 0.005,
-          longitude: lon + offsetLon + (Math.random() - 0.5) * 0.005,
-          title: `${dungeonType === 'combat' ? '⚔️' : dungeonType === 'puzzle' ? '🧩' : '❓'} Dungeon ${r.rank}`,
-          description: `${dungeonType.charAt(0).toUpperCase() + dungeonType.slice(1)} Dungeon ${r.rank}`,
-          rank: r.rank,
-          color: r.color,
-          difficulty: r.difficulty,
-          type: dungeonType,
-          completed: false,
-          rewards: rewards
-        };
-        
-        // Verificar se está muito próxima de outras dungeons
-        for (const existingDungeon of novas) {
-          const distancia = calcularDistancia(
-            novaDungeon.latitude, novaDungeon.longitude,
-            existingDungeon.latitude, existingDungeon.longitude
-          );
-          
-          if (distancia < 0.001) { // ~100 metros
-            muitoProxima = true;
-            break;
-          }
-        }
-        
-        tentativas++;
-      } while (muitoProxima && tentativas < 10);
-      
+
+      // No mobile, usar coordenadas GPS reais
+      const offsetLat = (Math.random() - 0.5) * 0.1;
+      const offsetLon = (Math.random() - 0.5) * 0.1;
+      const dungeonLat = lat + offsetLat + (Math.random() - 0.5) * 0.005;
+      const dungeonLon = lon + offsetLon + (Math.random() - 0.5) * 0.005;
+
+      const novaDungeon = {
+        id: Date.now() + i,
+        latitude: dungeonLat,
+        longitude: dungeonLon,
+        title: `${dungeonType === 'combat' ? '⚔️' : dungeonType === 'puzzle' ? '🧩' : '❓'} Dungeon ${r.rank}`,
+        description: `${dungeonType.charAt(0).toUpperCase() + dungeonType.slice(1)} Dungeon ${r.rank}`,
+        rank: r.rank,
+        color: r.color,
+        difficulty: r.difficulty,
+        type: dungeonType,
+        completed: false,
+        rewards: rewards
+      };
+
       novas.push(novaDungeon);
     }
-    
+
     setDungeons(novas);
     setMapKey(prev => prev + 1);
 
     setTimeout(() => {
       setDungeons(prev => prev.filter(d => !novas.includes(d)));
-    }, 10 * 60 * 1000); // Aumentado para 10 minutos
-  };
-
-  // Função para calcular distância entre dois pontos
-  const calcularDistancia = (lat1, lon1, lat2, lon2) => {
-    return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
+    }, 10 * 60 * 1000);
   };
 
   const handleDungeonPress = (dungeon) => {
@@ -237,14 +241,14 @@ export default function App() {
       Alert.alert("Dungeon Concluída", "Esta dungeon já foi completada!");
       return;
     }
-    
+
     setSelectedDungeon(dungeon);
     setShowDungeonConfirm(true);
   };
 
   const entrarDungeon = (dungeon) => {
     setShowDungeonConfirm(false);
-    
+
     if (dungeon.type === "combat") {
       setCurrentDungeon(dungeon);
     } else if (dungeon.type === "puzzle") {
@@ -263,7 +267,7 @@ export default function App() {
       novoLevel++;
       const xpRestante = novoXp - (level * 100);
       novoXp = xpRestante;
-      
+
       newPlayer = {
         ...newPlayer,
         maxHp: newPlayer.maxHp + 20,
@@ -274,9 +278,9 @@ export default function App() {
         mana: newPlayer.maxMana + 10,
         level: novoLevel
       };
-      
+
       Alert.alert("🎉 Level Up!", `Você alcançou o nível ${novoLevel}!`);
-      
+
       if (novoLevel === 3 && !playerClass) {
         setShowClassSelection(true);
       }
@@ -293,27 +297,40 @@ export default function App() {
       ...recompensaBase,
       ...recompensaExtra
     };
-    
-    setDungeons(prev => prev.map(d => 
+
+    setDungeons(prev => prev.map(d =>
       d.id === dungeon.id ? { ...d, completed: true, color: "green" } : d
     ));
-    
+
     setPlayer(prev => ({
       ...prev,
       gold: prev.gold + recompensaTotal.gold,
       xp: prev.xp + recompensaTotal.xp,
       inventory: [...prev.inventory, ...recompensaTotal.itens]
     }));
-    
+
     ganharXp(recompensaTotal.xp);
-    
+
     Alert.alert(
       "🎉 Dungeon Concluída!",
       `Recompensas:\n+${recompensaTotal.xp} XP\n+${recompensaTotal.gold} Ouro\n+${recompensaTotal.itens.length} Itens`
     );
   };
 
-  if (!location) {
+  // Função segura para obter coordenadas
+  const getSafeCoords = () => {
+    if (!location || !location.coords) {
+      return defaultCoords;
+    }
+    return {
+      latitude: location.coords.latitude || defaultCoords.latitude,
+      longitude: location.coords.longitude || defaultCoords.longitude,
+      latitudeDelta: location.coords.latitudeDelta || defaultCoords.latitudeDelta,
+      longitudeDelta: location.coords.longitudeDelta || defaultCoords.longitudeDelta
+    };
+  };
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <Text>Carregando localização...</Text>
@@ -321,17 +338,14 @@ export default function App() {
     );
   }
 
+  const safeCoords = getSafeCoords();
+
   return (
     <View style={styles.container}>
       <MapView
         key={mapKey}
         style={StyleSheet.absoluteFillObject}
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.1, // Aumentado para ver mais dungeons
-          longitudeDelta: 0.1, // Aumentado para ver mais dungeons
-        }}
+        initialRegion={safeCoords}
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
@@ -344,7 +358,7 @@ export default function App() {
             onPress={() => handleDungeonPress(d)}
           >
             <View style={[
-              styles.markerContainer, 
+              styles.markerContainer,
               { backgroundColor: d.completed ? 'green' : d.color },
               d.completed && styles.completedMarker
             ]}>
@@ -363,47 +377,36 @@ export default function App() {
       )}
 
       <View style={styles.controlsContainer}>
-        <TouchableOpacity 
-          style={styles.shopButton}
+        <TouchableOpacity
+          style={styles.controlButton}
           onPress={() => setShowShop(true)}
         >
           <Text style={styles.buttonText}>🛒</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.equipamentButton}
+        <TouchableOpacity
+          style={styles.controlButton}
           onPress={() => setShowEquipament(true)}
         >
           <Text style={styles.buttonText}>⚔️</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.inventoryButton}
+        <TouchableOpacity
+          style={styles.controlButton}
           onPress={() => setShowInventory(true)}
         >
           <Text style={styles.buttonText}>🎒</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={() => location && gerarDungeons(location.latitude, location.longitude)}
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => gerarDungeons(safeCoords.latitude, safeCoords.longitude)}
         >
           <Text style={styles.buttonText}>🔄</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.mapButton}
-          onPress={() => {
-            // Zoom out para ver mais dungeons
-            setMapKey(prev => prev + 1);
-          }}
-        >
-          <Text style={styles.buttonText}>🗺️</Text>
-        </TouchableOpacity>
-
-        {/* Botão para abrir a Quest Diária */}
-        <TouchableOpacity 
-          style={styles.questButton}
+        <TouchableOpacity
+          style={styles.controlButton}
           onPress={() => setShowQuest(true)}
         >
           <Text style={styles.buttonText}>📋</Text>
@@ -421,6 +424,7 @@ export default function App() {
         <Text style={styles.infoText}>Dungeons: {dungeons.length}</Text>
       </View>
 
+      {/* Modais */}
       <Modal visible={showClassSelection} animationType="slide">
         <ClassSelection
           onSelect={(cls) => {
@@ -507,15 +511,23 @@ export default function App() {
         )}
       </Modal>
 
-      {/* Modal da Quest Diária */}
       <Modal visible={showQuest} animationType="slide">
-        <QuestDiaria 
+        <QuestDiaria
           player={player}
           setPlayer={setPlayer}
           visible={showQuest}
           onClose={() => setShowQuest(false)}
         />
       </Modal>
+
+      <ErrorBoundary onBack={() => setShowQuest(false)}>
+        <QuestDiaria
+          player={player}
+          setPlayer={setPlayer}
+          visible={showQuest}
+          onClose={() => setShowQuest(false)}
+        />
+      </ErrorBoundary>
     </View>
   );
 }
@@ -547,59 +559,14 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 10
   },
-  shopButton: {
+  controlButton: {
     backgroundColor: '#4B0082',
     padding: 15,
     borderRadius: 25,
     width: 50,
     height: 50,
     justifyContent: 'center',
-    alignItems: 'center'
-  },
-  equipamentButton: {
-    backgroundColor: '#9b59b6',
-    padding: 15,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  inventoryButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  refreshButton: {
-    backgroundColor: '#FF9500',
-    padding: 15,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  mapButton: {
-    backgroundColor: '#27ae60',
-    padding: 15,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  questButton: {
-    backgroundColor: '#FF6B6B',
-    padding: 15,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   buttonText: {
     color: 'white',
