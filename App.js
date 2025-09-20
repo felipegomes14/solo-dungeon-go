@@ -22,20 +22,12 @@ import ShopScreen from "./ShopScreen";
 import QuestDiaria from "./QuestDiaria";
 import ErrorBoundary from './ErrorBoundary';
 
-// Para mobile, importamos componentes nativos
-let MapView, Marker, Location;
-if (Platform.OS !== 'web') {
-  MapView = require("react-native-maps").default;
-  Marker = require("react-native-maps").Marker;
-  Location = require("expo-location");
-}
+// Importar componentes nativos do React Native Maps
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
 
 export default function App() {
-  const [location, setLocation] = useState(
-    Platform.OS === 'web'
-      ? { coords: { latitude: -23.5505, longitude: -46.6333, latitudeDelta: 0.1, longitudeDelta: 0.1 } }
-      : null
-  );
+  const [location, setLocation] = useState(null);
   const [dungeons, setDungeons] = useState([]);
   const [currentDungeon, setCurrentDungeon] = useState(null);
   const [currentGame, setCurrentGame] = useState(null);
@@ -45,8 +37,7 @@ export default function App() {
   const [showEquipament, setShowEquipament] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showQuest, setShowQuest] = useState(false);
-  const [virtualPosition, setVirtualPosition] = useState({ x: 0, y: 0 });
-  const [isLoading, setIsLoading] = useState(Platform.OS !== 'web');
+  const [isLoading, setIsLoading] = useState(true);
 
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
@@ -84,9 +75,6 @@ export default function App() {
     equipament: {}
   });
 
-  // Detectar se é desktop pela largura da tela
-  const isDesktop = Dimensions.get('window').width > 768;
-
   // Coordenadas padrão para fallback
   const defaultCoords = {
     latitude: -23.5505,
@@ -110,14 +98,7 @@ export default function App() {
   }, [player.hp, player.maxHp, currentDungeon, currentGame]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      // No navegador, usar posição virtual
-      gerarDungeons(-23.5505, -46.6333);
-      setIsLoading(false);
-      return;
-    }
-
-    // No mobile, solicitar permissão de localização
+    // Solicitar permissão de localização
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -150,48 +131,6 @@ export default function App() {
       }
     })();
   }, []);
-
-  // Controles de teclado para desktop
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const handleKeyPress = (e) => {
-        switch (e.key.toLowerCase()) {
-          case 'arrowup':
-          case 'w':
-            setVirtualPosition(prev => ({ ...prev, y: prev.y - 10 }));
-            break;
-          case 'arrowdown':
-          case 's':
-            setVirtualPosition(prev => ({ ...prev, y: prev.y + 10 }));
-            break;
-          case 'arrowleft':
-          case 'a':
-            setVirtualPosition(prev => ({ ...prev, x: prev.x - 10 }));
-            break;
-          case 'arrowright':
-          case 'd':
-            setVirtualPosition(prev => ({ ...prev, x: prev.x + 10 }));
-            break;
-          case ' ':
-            // Espaço para interagir com dungeon mais próxima
-            interagirComDungeonProxima();
-            break;
-          case 'q':
-            setShowQuest(true);
-            break;
-          case 'i':
-            setShowInventory(true);
-            break;
-          case 'e':
-            setShowEquipament(true);
-            break;
-        }
-      };
-
-      window.addEventListener('keydown', handleKeyPress);
-      return () => window.removeEventListener('keydown', handleKeyPress);
-    }
-  }, [dungeons]);
 
   const ranks = [
     { rank: "F", color: "gray", difficulty: 1 },
@@ -259,27 +198,18 @@ export default function App() {
 
   const gerarDungeons = (lat, lon) => {
     const novas = [];
-    const numDungeons = Platform.OS === 'web' ? 15 : 25;
+    const numDungeons = 25;
 
     for (let i = 0; i < numDungeons; i++) {
       const r = ranks[Math.floor(Math.random() * ranks.length)];
       const dungeonType = getDungeonType();
       const rewards = getDungeonRewards({ ...r, type: dungeonType });
 
-      // Coordenadas baseadas na plataforma
-      let dungeonLat, dungeonLon;
-
-      if (Platform.OS === 'web') {
-        // No navegador, posicionar dungeons aleatoriamente na tela
-        dungeonLat = virtualPosition.y + (Math.random() * 500 - 250);
-        dungeonLon = virtualPosition.x + (Math.random() * 500 - 250);
-      } else {
-        // No mobile, usar coordenadas GPS reais
-        const offsetLat = (Math.random() - 0.5) * 0.1;
-        const offsetLon = (Math.random() - 0.5) * 0.1;
-        dungeonLat = lat + offsetLat + (Math.random() - 0.5) * 0.005;
-        dungeonLon = lon + offsetLon + (Math.random() - 0.5) * 0.005;
-      }
+      // No mobile, usar coordenadas GPS reais
+      const offsetLat = (Math.random() - 0.5) * 0.1;
+      const offsetLon = (Math.random() - 0.5) * 0.1;
+      const dungeonLat = lat + offsetLat + (Math.random() - 0.5) * 0.005;
+      const dungeonLon = lon + offsetLon + (Math.random() - 0.5) * 0.005;
 
       const novaDungeon = {
         id: Date.now() + i,
@@ -304,30 +234,6 @@ export default function App() {
     setTimeout(() => {
       setDungeons(prev => prev.filter(d => !novas.includes(d)));
     }, 10 * 60 * 1000);
-  };
-
-  // Função para interagir com dungeon mais próxima no modo desktop
-  const interagirComDungeonProxima = () => {
-    if (dungeons.length === 0) return;
-
-    // Encontrar a dungeon mais próxima da posição virtual
-    const dungeonMaisProxima = dungeons.reduce((maisProxima, dungeon) => {
-      const distancia = Math.sqrt(
-        Math.pow(dungeon.latitude - virtualPosition.y, 2) +
-        Math.pow(dungeon.longitude - virtualPosition.x, 2)
-      );
-
-      if (!maisProxima || distancia < maisProxima.distancia) {
-        return { dungeon, distancia };
-      }
-      return maisProxima;
-    }, null);
-
-    if (dungeonMaisProxima && dungeonMaisProxima.distancia < 50) {
-      handleDungeonPress(dungeonMaisProxima.dungeon);
-    } else {
-      Alert.alert("Nenhuma dungeon próxima", "Movimente-se para perto de uma dungeon para interagir");
-    }
   };
 
   const handleDungeonPress = (dungeon) => {
@@ -424,46 +330,6 @@ export default function App() {
     };
   };
 
-  // Renderizar mapa para web (versão simplificada)
-  const renderWebMap = () => {
-    return (
-      <View style={styles.webMapContainer}>
-        <View style={styles.webMap}>
-          <Text style={styles.webMapTitle}>Mapa do Mundo</Text>
-          <Text style={styles.webMapInstructions}>
-            Use WASD ou setas para navegar, Espaço para interagir
-          </Text>
-
-          {/* Personagem do jogador */}
-          <View style={[styles.playerMarker, {
-            top: 250 + virtualPosition.y,
-            left: 250 + virtualPosition.x
-          }]}>
-            <Text>🧙</Text>
-          </View>
-
-          {/* Dungeons */}
-          {dungeons.map((dungeon) => (
-            <TouchableOpacity
-              key={dungeon.id}
-              style={[
-                styles.dungeonMarker,
-                {
-                  top: dungeon.latitude,
-                  left: dungeon.longitude,
-                  backgroundColor: dungeon.completed ? 'green' : dungeon.color
-                }
-              ]}
-              onPress={() => handleDungeonPress(dungeon)}
-            >
-              <Text style={styles.markerText}>{dungeon.completed ? '✓' : dungeon.rank}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -476,37 +342,33 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' ? (
-        renderWebMap()
-      ) : (
-        <MapView
-          key={mapKey}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={safeCoords}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-        >
-          {dungeons.map((d) => (
-            <Marker
-              key={d.id}
-              coordinate={{ latitude: d.latitude, longitude: d.longitude }}
-              title={d.title}
-              description={d.description}
-              onPress={() => handleDungeonPress(d)}
-            >
-              <View style={[
-                styles.markerContainer,
-                { backgroundColor: d.completed ? 'green' : d.color },
-                d.completed && styles.completedMarker
-              ]}>
-                <Text style={styles.markerText}>
-                  {d.completed ? '✓' : d.rank}
-                </Text>
-              </View>
-            </Marker>
-          ))}
-        </MapView>
-      )}
+      <MapView
+        key={mapKey}
+        style={StyleSheet.absoluteFillObject}
+        initialRegion={safeCoords}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+      >
+        {dungeons.map((d) => (
+          <Marker
+            key={d.id}
+            coordinate={{ latitude: d.latitude, longitude: d.longitude }}
+            title={d.title}
+            description={d.description}
+            onPress={() => handleDungeonPress(d)}
+          >
+            <View style={[
+              styles.markerContainer,
+              { backgroundColor: d.completed ? 'green' : d.color },
+              d.completed && styles.completedMarker
+            ]}>
+              <Text style={styles.markerText}>
+                {d.completed ? '✓' : d.rank}
+              </Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
 
       {player.hp < player.maxHp && !currentDungeon && !currentGame && (
         <View style={styles.regenIndicator}>
@@ -514,7 +376,7 @@ export default function App() {
         </View>
       )}
 
-      <View style={[styles.controlsContainer, isDesktop && styles.desktopControls]}>
+      <View style={styles.controlsContainer}>
         <TouchableOpacity
           style={styles.controlButton}
           onPress={() => setShowShop(true)}
@@ -543,41 +405,6 @@ export default function App() {
           <Text style={styles.buttonText}>🔄</Text>
         </TouchableOpacity>
 
-        {Platform.OS === 'web' && (
-          <>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={() => setVirtualPosition(prev => ({ ...prev, y: prev.y - 50 }))}
-            >
-              <Text style={styles.buttonText}>⬆️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={() => setVirtualPosition(prev => ({ ...prev, y: prev.y + 50 }))}
-            >
-              <Text style={styles.buttonText}>⬇️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={() => setVirtualPosition(prev => ({ ...prev, x: prev.x - 50 }))}
-            >
-              <Text style={styles.buttonText}>⬅️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={() => setVirtualPosition(prev => ({ ...prev, x: prev.x + 50 }))}
-            >
-              <Text style={styles.buttonText}>➡️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={interagirComDungeonProxima}
-            >
-              <Text style={styles.buttonText}>⚡</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
         <TouchableOpacity
           style={styles.controlButton}
           onPress={() => setShowQuest(true)}
@@ -586,7 +413,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.playerInfo, isDesktop && styles.desktopPlayerInfo]}>
+      <View style={styles.playerInfo}>
         <Text style={styles.infoText}>Lv.{level}</Text>
         <Text style={styles.infoText}>XP: {xp}/{level * 100}</Text>
         <Text style={styles.infoText}>HP: {player.hp}/{player.maxHp}</Text>
@@ -595,13 +422,9 @@ export default function App() {
         <Text style={styles.infoText}>DEF: {player.def}</Text>
         <Text style={styles.infoText}>💰: {player.gold}</Text>
         <Text style={styles.infoText}>Dungeons: {dungeons.length}</Text>
-
-        {Platform.OS === 'web' && (
-          <Text style={styles.infoText}>Pos: {virtualPosition.x}, {virtualPosition.y}</Text>
-        )}
       </View>
 
-      {/* Modais (funcionam igual em ambas as plataformas) */}
+      {/* Modais */}
       <Modal visible={showClassSelection} animationType="slide">
         <ClassSelection
           onSelect={(cls) => {
@@ -716,53 +539,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  webMapContainer: {
-    flex: 1,
-    backgroundColor: '#e8f5e8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  webMap: {
-    width: '90%',
-    height: '80%',
-    backgroundColor: '#c8e6c9',
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#388e3c',
-    overflow: 'hidden',
-  },
-  webMapTitle: {
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 10,
-    color: '#2e7d32',
-  },
-  webMapInstructions: {
-    textAlign: 'center',
-    fontSize: 14,
-    marginBottom: 20,
-    color: '#555',
-  },
-  playerMarker: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  dungeonMarker: {
-    position: 'absolute',
-    width: 35,
-    height: 35,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-  },
   regenIndicator: {
     position: 'absolute',
     top: 100,
@@ -783,14 +559,6 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 10
   },
-  desktopControls: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    width: '100%',
-    right: 0,
-    bottom: 10,
-  },
   controlButton: {
     backgroundColor: '#4B0082',
     padding: 15,
@@ -799,7 +567,6 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 5,
   },
   buttonText: {
     color: 'white',
@@ -814,18 +581,10 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
   },
-  desktopPlayerInfo: {
-    top: 10,
-    left: 10,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    maxWidth: '80%',
-  },
   infoText: {
     color: 'white',
     fontSize: 12,
     marginBottom: 2,
-    marginRight: 10,
   },
   markerContainer: {
     padding: 8,

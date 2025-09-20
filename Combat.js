@@ -216,8 +216,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       xp: totalXp,
       gold: totalGold,
       itens: [
-        { type: 'potion', name: 'Poção de Cura', effect: 'heal', value: 30 },
-        { type: 'potion', name: 'Poção de Mana', effect: 'mana', value: 20 }
+        { type: 'poção', name: 'Poção de Cura', effect: 'cura', value: 30 },
+        { type: 'poção', name: 'Poção de Mana', effect: 'mana', value: 20 }
       ]
     };
     
@@ -239,27 +239,76 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
     setIsProcessing(true);
 
-    if (item.type === 'potion') {
+    // CORREÇÃO: Verificar tanto 'potion' quanto 'poção'
+    if (item.type === 'potion' || item.type === 'poção') {
       const healValue = Number(item.value) || 30;
-      setPlayer(prev => ({
-        ...prev,
-        hp: Math.min(Number(prev.maxHp) || 100, (Number(prev.hp) || 0) + healValue),
-        inventory: prev.inventory.filter(i => i !== item)
-      }));
-      addToLog(`🧪 Usou ${item.name}! +${healValue} HP`);
-    } else if (item.type === 'scroll') {
+      
+      // CORREÇÃO: Usar effect para determinar o tipo de cura
+      if (item.effect === 'heal' || item.effect === 'cura') {
+        setPlayer(prev => {
+          const currentHp = Number(prev.hp) || 0;
+          const maxHp = Number(prev.maxHp) || 100;
+          const newHp = Math.min(maxHp, currentHp + healValue);
+          
+          // Remover o item usado do inventário
+          const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
+          const newInventory = [...prev.inventory];
+          if (itemIndex !== -1) {
+            newInventory.splice(itemIndex, 1);
+          }
+
+          return {
+            ...prev,
+            hp: newHp,
+            inventory: newInventory
+          };
+        });
+        addToLog(`🧪 Usou ${item.name}! +${healValue} HP`);
+      } 
+      else if (item.effect === 'mana') {
+        setPlayer(prev => {
+          const currentMana = Number(prev.mana) || 0;
+          const maxMana = Number(prev.maxMana) || 50;
+          const newMana = Math.min(maxMana, currentMana + healValue);
+          
+          // Remover o item usado do inventário
+          const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
+          const newInventory = [...prev.inventory];
+          if (itemIndex !== -1) {
+            newInventory.splice(itemIndex, 1);
+          }
+
+          return {
+            ...prev,
+            mana: newMana,
+            inventory: newInventory
+          };
+        });
+        addToLog(`🧪 Usou ${item.name}! +${healValue} MP`);
+      }
+    } else if (item.type === 'scroll' || item.type === 'pergaminho') {
       const xpValue = Number(item.value) || 50;
       addToLog(`📜 ${item.name} usado! +${xpValue} XP`);
       ganharXp(xpValue);
-      setPlayer(prev => ({
-        ...prev,
-        inventory: prev.inventory.filter(i => i !== item)
-      }));
+      setPlayer(prev => {
+        // Remover o item usado do inventário
+        const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
+        const newInventory = [...prev.inventory];
+        if (itemIndex !== -1) {
+          newInventory.splice(itemIndex, 1);
+        }
+
+        return {
+          ...prev,
+          inventory: newInventory
+        };
+      });
     }
 
     setIsPlayerTurn(false);
     setTimeout(() => {
       monsterTurn();
+      setIsProcessing(false);
     }, 1000);
   };
 
@@ -419,14 +468,14 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   defendButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'rgba(52, 152, 219, 0.8)',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
     marginBottom: 8
   },
   skillButton: {
-    backgroundColor: '#9b59b6',
+    backgroundColor: 'rgba(155, 89, 182, 0.8)',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
@@ -447,7 +496,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   itemButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'rgba(39, 174, 96, 0.8)',
     padding: 8,
     borderRadius: 5,
     marginBottom: 4
@@ -458,7 +507,7 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   fleeButton: {
-    backgroundColor: '#f39c12',
+    backgroundColor: 'rgba(243, 156, 18, 0.8)',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center'
@@ -469,7 +518,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   closeButton: {
-    backgroundColor: '#7f8c8d',
+    backgroundColor: 'rgba(127, 140, 141, 0.8)',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
