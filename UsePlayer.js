@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { Alert } from "react-native";
 
 const usePlayer = () => {
@@ -40,8 +40,10 @@ const usePlayer = () => {
 
   // Regeneração de HP e MP apenas fora do combate
   useEffect(() => {
-    const regenInterval = setInterval(() => {
-      if (!isInCombat) {
+    let regenInterval;
+    
+    if (!isInCombat) {
+      regenInterval = setInterval(() => {
         setPlayer(prev => {
           const shouldRegenHp = prev.hp < prev.maxHp;
           const shouldRegenMana = prev.mana < prev.maxMana;
@@ -55,10 +57,14 @@ const usePlayer = () => {
           }
           return prev;
         });
-      }
-    }, 1000);
+      }, 1000);
+    }
 
-    return () => clearInterval(regenInterval);
+    return () => {
+      if (regenInterval) {
+        clearInterval(regenInterval);
+      }
+    };
   }, [isInCombat]);
 
   const entrarEmCombate = () => {

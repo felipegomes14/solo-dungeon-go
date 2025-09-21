@@ -1,10 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Easing } from 'react-native';
 
 const QuizGame = ({ dungeon, onClose, onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
+
+  const animateButton = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        easing: Easing.ease,
+        useNativeDriver: true
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        easing: Easing.ease,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
 
   // Questões organizadas por nível de dificuldade (F a A)
   const questionsByDifficulty = {
@@ -23,41 +41,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         question: "Qual animal mia?",
         options: ["Cachorro", "Gato", "Vaca", "Galinha"],
         correct: 1
-      },
-      {
-        question: "Que cor é formada pela mistura de azul e amarelo?",
-        options: ["Verde", "Roxo", "Laranja", "Marrom"],
-        correct: 0
-      },
-      {
-        question: "Quantos dias tem uma semana?",
-        options: ["5", "6", "7", "8"],
-        correct: 2
-      },
-      {
-        question: "Qual é o maior planeta do sistema solar?",
-        options: ["Terra", "Marte", "Júpiter", "Saturno"],
-        correct: 2
-      },
-      {
-        question: "Que instrumento tem cordas e é tocado com arco?",
-        options: ["Violão", "Piano", "Violino", "Bateria"],
-        correct: 2
-      },
-      {
-        question: "Qual fruta é conhecida como 'rei das frutas' no Brasil?",
-        options: ["Maçã", "Banana", "Manga", "Uva"],
-        correct: 2
-      },
-      {
-        question: "Em que continente fica o Brasil?",
-        options: ["Europa", "Ásia", "América do Sul", "África"],
-        correct: 2
-      },
-      {
-        question: "Que estação vem depois do verão?",
-        options: ["Primavera", "Inverno", "Outono", "Verão de novo"],
-        correct: 2
       }
     ],
     E: [
@@ -75,41 +58,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         question: "Qual é o elemento químico representado por 'O'?",
         options: ["Ouro", "Oxigênio", "Ósmio", "Osmio"],
         correct: 1
-      },
-      {
-        question: "Que país tem a forma de uma bota?",
-        options: ["França", "Itália", "Espanha", "Portugal"],
-        correct: 1
-      },
-      {
-        question: "Qual é o maior oceano do mundo?",
-        options: ["Atlântico", "Índico", "Pacífico", "Ártico"],
-        correct: 2
-      },
-      {
-        question: "Que animal é o símbolo da Austrália?",
-        options: ["Canguru", "Coala", "Emu", "Ornitorrinco"],
-        correct: 0
-      },
-      {
-        question: "Quantos anos tem um século?",
-        options: ["10", "50", "100", "1000"],
-        correct: 2
-      },
-      {
-        question: "Qual é a moeda oficial do Japão?",
-        options: ["Yuan", "Won", "Yen", "Dólar"],
-        correct: 2
-      },
-      {
-        question: "Que planeta é conhecido como 'Planeta Vermelho'?",
-        options: ["Vênus", "Marte", "Júpiter", "Saturno"],
-        correct: 1
-      },
-      {
-        question: "Qual é a capital da Argentina?",
-        options: ["Buenos Aires", "Santiago", "Lima", "Montevidéu"],
-        correct: 0
       }
     ],
     D: [
@@ -126,41 +74,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
       {
         question: "Que idioma é falado no Brasil?",
         options: ["Espanhol", "Português", "Inglês", "Francês"],
-        correct: 1
-      },
-      {
-        question: "Quantos elementos tem a tabela periódica?",
-        options: ["92", "118", "150", "206"],
-        correct: 1
-      },
-      {
-        question: "Qual é a montanha mais alta do mundo?",
-        options: ["K2", "Monte Everest", "Mont Blanc", "Kilimanjaro"],
-        correct: 1
-      },
-      {
-        question: "Que escritor brasileiro escreveu 'O Cortiço'?",
-        options: ["Machado de Assis", "Aluísio Azevedo", "José de Alencar", "Graciliano Ramos"],
-        correct: 1
-      },
-      {
-        question: "Qual é o maior deserto do mundo?",
-        options: ["Deserto do Saara", "Deserto de Gobi", "Deserto da Arábia", "Antártida"],
-        correct: 3
-      },
-      {
-        question: "Que planeta tem anéis visíveis?",
-        options: ["Júpiter", "Saturno", "Urano", "Netuno"],
-        correct: 1
-      },
-      {
-        question: "Qual é a capital da Rússia?",
-        options: ["São Petersburgo", "Moscou", "Kiev", "Varsóvia"],
-        correct: 1
-      },
-      {
-        question: "Que ano começou a Segunda Guerra Mundial?",
-        options: ["1914", "1939", "1941", "1945"],
         correct: 1
       }
     ],
@@ -179,41 +92,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         question: "Que filósofo grego foi professor de Alexandre, o Grande?",
         options: ["Sócrates", "Platão", "Aristóteles", "Pitágoras"],
         correct: 2
-      },
-      {
-        question: "Qual é o país com maior área territorial do mundo?",
-        options: ["Canadá", "China", "Estados Unidos", "Rússia"],
-        correct: 3
-      },
-      {
-        question: "Que compositor era surdo?",
-        options: ["Mozart", "Beethoven", "Bach", "Chopin"],
-        correct: 1
-      },
-      {
-        question: "Qual é o elemento mais abundante na crosta terrestre?",
-        options: ["Oxigênio", "Silício", "Alumínio", "Ferro"],
-        correct: 0
-      },
-      {
-        question: "Que império foi liderado por Montezuma?",
-        options: ["Inca", "Asteca", "Maiá", "Tolteca"],
-        correct: 1
-      },
-      {
-        question: "Qual é a velocidade da luz no vácuo?",
-        options: ["300.000 km/s", "150.000 km/s", "450.000 km/s", "600.000 km/s"],
-        correct: 0
-      },
-      {
-        question: "Que escritor criou 'Harry Potter'?",
-        options: ["J.R.R. Tolkien", "J.K. Rowling", "George R.R. Martin", "C.S. Lewis"],
-        correct: 1
-      },
-      {
-        question: "Qual é o menor país do mundo?",
-        options: ["Mônaco", "Vaticano", "San Marino", "Liechtenstein"],
-        correct: 1
       }
     ],
     B: [
@@ -231,41 +109,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         question: "Que pintor cortou a própria orelha?",
         options: ["Pablo Picasso", "Vincent van Gogh", "Salvador Dalí", "Claude Monet"],
         correct: 1
-      },
-      {
-        question: "Qual é a capital da Austrália?",
-        options: ["Sydney", "Melbourne", "Canberra", "Perth"],
-        correct: 2
-      },
-      {
-        question: "Que filósofo disse 'Penso, logo existo'?",
-        options: ["Platão", "Aristóteles", "Descartes", "Kant"],
-        correct: 2
-      },
-      {
-        question: "Qual é o metal mais condutor de eletricidade?",
-        options: ["Ouro", "Prata", "Cobre", "Alumínio"],
-        correct: 1
-      },
-      {
-        question: "Que país tem a bandeira com uma folha de maple?",
-        options: ["Estados Unidos", "Canadá", "Austrália", "Nova Zelândia"],
-        correct: 1
-      },
-      {
-        question: "Qual é o livro mais vendido do mundo depois da Bíblia?",
-        options: ["Dom Quixote", "Um Conto de Duas Cidades", "O Pequeno Príncipe", "Harry Potter"],
-        correct: 0
-      },
-      {
-        question: "Que cientista propôs as leis do movimento?",
-        options: ["Galileu", "Newton", "Einstein", "Copérnico"],
-        correct: 1
-      },
-      {
-        question: "Qual é o rio mais longo do mundo?",
-        options: ["Amazonas", "Nilo", "Mississippi", "Yangtzé"],
-        correct: 0
       }
     ],
     A: [
@@ -283,41 +126,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         question: "Que compositor escreveu 'As Quatro Estações'?",
         options: ["Mozart", "Beethoven", "Vivaldi", "Bach"],
         correct: 2
-      },
-      {
-        question: "Qual é a fórmula de Bhaskara?",
-        options: ["x = -b ± √(b² - 4ac)/2a", "x = b ± √(b² - ac)/2a", "x = -b ± √(b² + 4ac)/2a", "x = b ± √(b² + ac)/2a"],
-        correct: 0
-      },
-      {
-        question: "Que teórico propôs a psicanálise?",
-        options: ["Carl Jung", "Sigmund Freud", "B.F. Skinner", "Ivan Pavlov"],
-        correct: 1
-      },
-      {
-        question: "Qual é a capital do Cazaquistão?",
-        options: ["Astana", "Bishkek", "Tashkent", "Dushanbe"],
-        correct: 0
-      },
-      {
-        question: "Que elemento químico tem número atômico 79?",
-        options: ["Prata", "Mercúrio", "Ouro", "Platina"],
-        correct: 2
-      },
-      {
-        question: "Qual pintor espanhol é conhecido por sua fase 'azul'?",
-        options: ["Salvador Dalí", "Pablo Picasso", "Joan Miró", "Diego Velázquez"],
-        correct: 1
-      },
-      {
-        question: "Que filósofo escreveu 'Assim Falou Zaratustra'?",
-        options: ["Friedrich Nietzsche", "Arthur Schopenhauer", "Immanuel Kant", "Jean-Paul Sartre"],
-        correct: 0
-      },
-      {
-        question: "Qual é a velocidade do som no ar?",
-        options: ["340 m/s", "300 m/s", "400 m/s", "500 m/s"],
-        correct: 0
       }
     ]
   };
@@ -333,6 +141,8 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
 
   const handleAnswer = (selectedIndex) => {
     if (quizFinished) return;
+
+    animateButton();
 
     let newScore = score;
     if (selectedIndex === questions[currentQuestion].correct) {
@@ -363,13 +173,6 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
                 name: 'Poção de Mana', 
                 effect: 'mana', 
                 value: 25 
-              },
-              { 
-                id: Date.now() + 1, 
-                type: 'scroll', 
-                name: 'Pergaminho de Sabedoria', 
-                effect: 'xp', 
-                value: 50 
               }
             ]
           };
@@ -387,25 +190,38 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>❓ Quiz da Dungeon {dungeon.rank}</Text>
-      <Text style={styles.score}>Pontuação: {score}/{questions.length}</Text>
-      <Text style={styles.difficulty}>Dificuldade: {dungeon.rank}</Text>
-      
+      <View style={styles.header}>
+        <Text style={styles.title}>❓ QUIZ {dungeon.rank}</Text>
+        <View style={styles.scoreContainer}>
+          <Text style={styles.score}>{score}/{questions.length}</Text>
+        </View>
+      </View>
+
+      <View style={styles.difficultyBadge}>
+        <Text style={styles.difficultyText}>Dificuldade: {dungeon.rank}</Text>
+      </View>
+
       {!quizFinished ? (
         <View style={styles.questionContainer}>
           <Text style={styles.questionNumber}>Pergunta {currentQuestion + 1}/{questions.length}</Text>
-          <Text style={styles.questionText}>{currentQ.question}</Text>
           
-          {currentQ.options.map((option, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.optionButton}
-              onPress={() => handleAnswer(index)}
-              disabled={quizFinished}
-            >
-              <Text style={styles.optionText}>{option}</Text>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.questionCard}>
+            <Text style={styles.questionText}>{currentQ.question}</Text>
+          </View>
+          
+          <View style={styles.optionsContainer}>
+            {currentQ.options.map((option, index) => (
+              <Animated.View key={index} style={{ transform: [{ scale: scaleAnim }] }}>
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={() => handleAnswer(index)}
+                  disabled={quizFinished}
+                >
+                  <Text style={styles.optionText}>{option}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </View>
         </View>
       ) : (
         <View style={styles.resultContainer}>
@@ -417,7 +233,7 @@ const QuizGame = ({ dungeon, onClose, onComplete }) => {
         style={styles.closeButton}
         onPress={onClose}
       >
-        <Text style={styles.closeButtonText}>Desistir</Text>
+        <Text style={styles.closeButtonText}>🚪 SAIR</Text>
       </TouchableOpacity>
     </View>
   );
@@ -427,79 +243,126 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fffde7',
+    backgroundColor: '#0f0f1f',
     justifyContent: 'center'
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(45, 45, 77, 0.8)',
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#4B0082',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-    color: '#d35400'
+    color: '#FFD700',
+    textShadowColor: 'rgba(255, 215, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  scoreContainer: {
+    backgroundColor: '#4B0082',
+    padding: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#9370DB',
   },
   score: {
+    color: '#FFD700',
     fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 5,
-    color: '#e67e22',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
-  difficulty: {
-    fontSize: 16,
-    textAlign: 'center',
+  difficultyBadge: {
+    backgroundColor: 'rgba(231, 76, 60, 0.3)',
+    padding: 10,
+    borderRadius: 20,
+    alignSelf: 'center',
     marginBottom: 20,
-    color: '#7f8c8d',
-    fontStyle: 'italic'
+    borderWidth: 1,
+    borderColor: '#e74c3c',
+  },
+  difficultyText: {
+    color: '#e74c3c',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   questionContainer: {
-    marginBottom: 30
+    marginBottom: 30,
   },
   questionNumber: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: '#BDC3C7',
     textAlign: 'center',
-    marginBottom: 10
+    marginBottom: 10,
+  },
+  questionCard: {
+    backgroundColor: 'rgba(45, 45, 77, 0.8)',
+    padding: 20,
+    borderRadius: 15,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#4B0082',
   },
   questionText: {
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#2c3e50'
+    color: '#FFFFFF',
+    lineHeight: 28,
+  },
+  optionsContainer: {
+    gap: 12,
   },
   optionButton: {
-    backgroundColor: '#3498db',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+    padding: 18,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#2980b9'
+    borderColor: '#c0392b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   optionText: {
     color: 'white',
     fontSize: 16,
-    textAlign: 'center'
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   closeButton: {
     backgroundColor: '#e74c3c',
-    padding: 15,
-    borderRadius: 10,
+    padding: 18,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20
+    borderWidth: 2,
+    borderColor: '#c0392b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   closeButtonText: {
     color: 'white',
-    fontSize: 16
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   resultContainer: {
     alignItems: 'center',
-    marginBottom: 30
+    marginBottom: 30,
   },
   resultText: {
     fontSize: 18,
-    color: '#2c3e50',
-    fontWeight: 'bold'
-  }
+    color: '#BDC3C7',
+    fontWeight: 'bold',
+  },
 });
 
 export default QuizGame;

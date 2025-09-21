@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
 import { View, Modal, Alert, Text } from "react-native";
 import MapView from "react-native-maps";
 
@@ -70,6 +70,33 @@ export default function App() {
     completarDungeon,
     gerarDungeons
   } = useDungeons();
+
+  useEffect(() => {
+    return () => {
+      setCurrentDungeon(null);
+      setCurrentGame(null);
+      setShowDungeonConfirm(false);
+      setShowClassSelection(false);
+      setShowInventory(false);
+      setShowEquipament(false);
+      setShowShop(false);
+      setShowQuest(false);
+    };
+  }, []);
+
+  const processarCompletarDungeon = (dungeon, recompensaExtra = {}) => {
+    const recompensaTotal = completarDungeon(dungeon, recompensaExtra);
+    
+    ganharXp(recompensaTotal.xp);
+    
+    setPlayer(prev => ({
+      ...prev,
+      gold: prev.gold + recompensaTotal.gold,
+      inventory: [...prev.inventory, ...recompensaTotal.itens]
+    }));
+    
+    return recompensaTotal;
+  };
 
   if (isLoading) {
     return (
@@ -177,7 +204,7 @@ export default function App() {
             sairDoCombate();
           }}
           onComplete={(recompensaExtra) => {
-            completarDungeon(currentDungeon, recompensaExtra);
+            processarCompletarDungeon(currentDungeon, recompensaExtra);
             setCurrentDungeon(null);
             sairDoCombate();
           }}
@@ -191,7 +218,7 @@ export default function App() {
             dungeon={currentGame.dungeon}
             onClose={() => setCurrentGame(null)}
             onComplete={(recompensaExtra) => {
-              completarDungeon(currentGame.dungeon, recompensaExtra);
+              processarCompletarDungeon(currentGame.dungeon, recompensaExtra);
               setCurrentGame(null);
             }}
           />
@@ -201,7 +228,7 @@ export default function App() {
             dungeon={currentGame.dungeon}
             onClose={() => setCurrentGame(null)}
             onComplete={(recompensaExtra) => {
-              completarDungeon(currentGame.dungeon, recompensaExtra);
+              processarCompletarDungeon(currentGame.dungeon, recompensaExtra);
               setCurrentGame(null);
             }}
           />
