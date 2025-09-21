@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { Alert } from "react-native";
 
 const ranks = [
@@ -23,6 +23,13 @@ const useDungeons = () => {
   const [showEquipament, setShowEquipament] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showQuest, setShowQuest] = useState(false);
+  const [timeoutIds, setTimeoutIds] = useState([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+    };
+  }, [timeoutIds]);
 
   const getDungeonType = () => {
     const random = Math.random();
@@ -100,9 +107,11 @@ const useDungeons = () => {
     setDungeons(novas);
     setMapKey(prev => prev + 1);
 
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setDungeons(prev => prev.filter(d => !novas.includes(d)));
     }, 10 * 60 * 1000);
+
+    setTimeoutIds(prev => [...prev, timeoutId]);
   };
 
   const handleDungeonPress = (dungeon) => {
@@ -125,9 +134,14 @@ const useDungeons = () => {
     }
   };
 
-  const completarDungeon = (dungeon, recompensaExtra) => {
-    const recompensaBase = dungeon.rewards;
-    const recompensaTotal = { ...recompensaBase, ...recompensaExtra };
+  const completarDungeon = (dungeon, recompensaExtra = {}) => {
+    const recompensaBase = dungeon.rewards || getDungeonRewards(dungeon);
+    
+    const recompensaTotal = {
+      xp: (recompensaBase.xp || 0) + (recompensaExtra.xp || 0),
+      gold: (recompensaBase.gold || 0) + (recompensaExtra.gold || 0),
+      itens: [...(recompensaBase.itens || []), ...(recompensaExtra.itens || [])]
+    };
 
     setDungeons(prev => prev.map(d =>
       d.id === dungeon.id ? { ...d, completed: true, color: "green" } : d

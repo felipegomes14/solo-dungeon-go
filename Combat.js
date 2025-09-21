@@ -9,6 +9,13 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const [isDefending, setIsDefending] = useState(false);
   const [combatStatus, setCombatStatus] = useState('ongoing');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [timeoutIds, setTimeoutIds] = useState([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+    };
+  }, [timeoutIds]);
 
   const monsterTemplates = {
     'F': { name: "Goblin", hp: 30, atk: 8, def: 2, xp: 15, gold: 10 },
@@ -20,6 +27,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     'S': { name: "Dragão", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
   };
 
+  // Inicializar combate
   useEffect(() => {
     if (dungeon) {
       const monsterCount = Math.min(3, 1 + Math.floor(dungeon.difficulty / 2));
@@ -50,6 +58,12 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
   const addToLog = (message) => {
     setCombatLog(prev => [message, ...prev.slice(0, 14)]);
+  };
+
+  const addTimeout = (callback, delay) => {
+    const timeoutId = setTimeout(callback, delay);
+    setTimeoutIds(prev => [...prev, timeoutId]);
+    return timeoutId;
   };
 
   const playerAttack = () => {
@@ -86,18 +100,18 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       addToLog(`🎯 ${currentMonster.name} derrotado!`);
       
       if (currentMonsterIndex < monsters.length - 1) {
-        setTimeout(() => {
+        addTimeout(() => {
           setCurrentMonsterIndex(prev => prev + 1);
           addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
           setIsPlayerTurn(true);
           setIsProcessing(false);
         }, 1000);
       } else {
-        setTimeout(() => victory(), 1000);
+        addTimeout(() => victory(), 1000);
       }
     } else {
       setIsPlayerTurn(false);
-      setTimeout(() => monsterTurn(), 1000);
+      addTimeout(() => monsterTurn(), 1000);
     }
   };
 
@@ -109,7 +123,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     setIsDefending(true);
     setIsPlayerTurn(false);
     
-    setTimeout(() => {
+    addTimeout(() => {
       monsterTurn();
     }, 1000);
   };
@@ -152,18 +166,18 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       addToLog(`🎯 ${currentMonster.name} derrotado!`);
       
       if (currentMonsterIndex < monsters.length - 1) {
-        setTimeout(() => {
+        addTimeout(() => {
           setCurrentMonsterIndex(prev => prev + 1);
           addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
           setIsPlayerTurn(true);
           setIsProcessing(false);
         }, 1000);
       } else {
-        setTimeout(() => victory(), 1000);
+        addTimeout(() => victory(), 1000);
       }
     } else {
       setIsPlayerTurn(false);
-      setTimeout(() => monsterTurn(), 1000);
+      addTimeout(() => monsterTurn(), 1000);
     }
   };
 
@@ -221,7 +235,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     
     ganharXp(totalXp);
     
-    setTimeout(() => {
+    addTimeout(() => {
       setPlayer(prev => ({
         ...prev,
         gold: (Number(prev.gold) || 0) + totalGold,
@@ -298,7 +312,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     }
 
     setIsPlayerTurn(false);
-    setTimeout(() => {
+    addTimeout(() => {
       monsterTurn();
       setIsProcessing(false);
     }, 1000);
@@ -313,7 +327,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     } else {
       addToLog('❌ Falha na fuga!');
       setIsPlayerTurn(false);
-      setTimeout(() => monsterTurn(), 1000);
+      addTimeout(() => monsterTurn(), 1000);
     }
   };
 
