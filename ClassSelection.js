@@ -2,6 +2,69 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 const ClassSelection = ({ onSelect }) => {
+  const classSkills = {
+    Guerreiro: [
+      { name: "Corte Poderoso", level: 1, description: "Causa 150% de dano" },
+      { name: "Fúria do Guerreiro", level: 15, description: "Dobra o ataque por 2 turnos" },
+      { name: "Espada Divina", level: 30, description: "Causa 300% de dano" }
+    ],
+    Mago: [
+      { name: "Bola de Fogo", level: 1, description: "Causa 180% de dano" },
+      { name: "Escudo Arcano", level: 15, description: "Dobra a defesa por 2 turnos" },
+      { name: "Meteoro", level: 30, description: "Causa 350% de dano" }
+    ],
+    Arqueiro: [
+      { name: "Tiro Preciso", level: 1, description: "Causa 160% de dano" },
+      { name: "Chuva de Flechas", level: 15, description: "Causa 220% de dano" },
+      { name: "Tiro Perfurante", level: 30, description: "Ignora 50% da defesa" }
+    ],
+    Ladino: [
+      { name: "Ataque Furtivo", level: 1, description: "Causa 200% de dano" },
+      { name: "Veneno", level: 15, description: "Envenena por 3 turnos" },
+      { name: "Evasão", level: 30, description: "80% de chance de esquiva" }
+    ],
+    Paladino: [
+      { name: "Golpe Sagrado", level: 1, description: "Causa 170% de dano" },
+      { name: "Cura Divina", level: 15, description: "Cura 40% do HP" },
+      { name: "Proteção Celestial", level: 30, description: "Aumenta defesa em 250%" }
+    ],
+    Bárbaro: [
+      { name: "Investida Feroz", level: 1, description: "Causa 140% de dano" },
+      { name: "Fúria Berserker", level: 15, description: "Aumenta ataque em 250%" },
+      { name: "Grito de Guerra", level: 30, description: "Dano em área" }
+    ],
+    Druida: [
+      { name: "Garras da Fera", level: 1, description: "Causa 150% de dano" },
+      { name: "Cura da Natureza", level: 15, description: "Cura 30% do HP" },
+      { name: "Chamado dos Antigos", level: 30, description: "Invoca aliado" }
+    ],
+    Necromante: [
+      { name: "Dreno de Vida", level: 1, description: "Rouba vida do inimigo" },
+      { name: "Invocar Esqueleto", level: 15, description: "Invoca esqueleto aliado" },
+      { name: "Explosão de Almas", level: 30, description: "Dano em área massivo" }
+    ],
+    Monge: [
+      { name: "Punho de Aço", level: 1, description: "Causa 130% de dano" },
+      { name: "Meditação", level: 15, description: "Regenera 20% de mana" },
+      { name: "Punhos Furiosos", level: 30, description: "Ataca 3 vezes" }
+    ],
+    Bardo: [
+      { name: "Canção de Batalha", level: 1, description: "Aumenta ataque do grupo" },
+      { name: "Melodia Curativa", level: 15, description: "Cura o grupo" },
+      { name: "Solo Épico", level: 30, description: "Aumenta todos os stats" }
+    ],
+    Caçador: [
+      { name: "Tiro Certeiro", level: 1, description: "Causa 150% de dano" },
+      { name: "Armadilha", level: 15, description: "Causa 180% de dano" },
+      { name: "Chamado do Animal", level: 30, description: "Invoca animal" }
+    ],
+    Alquimista: [
+      { name: "Poção Explosiva", level: 1, description: "Causa 160% de dano" },
+      { name: "Poção de Força", level: 15, description: "Aumenta ataque em 80%" },
+      { name: "Elixir Múltiplo", level: 30, description: "Múltiplos efeitos" }
+    ]
+  };
+
   const classes = [
     {
       name: "Guerreiro",
@@ -126,7 +189,7 @@ const ClassSelection = ({ onSelect }) => {
     },
     {
       name: "Alquimista",
-      description: "Criador de poções và especialista em elementos",
+      description: "Criador de poções e especialista em elementos",
       bonusAtk: 14,
       bonusDef: 8,
       bonusHp: 20,
@@ -163,6 +226,15 @@ const ClassSelection = ({ onSelect }) => {
               
               <View style={styles.specialContainer}>
                 <Text style={styles.specialText}>✨ {cls.special}</Text>
+              </View>
+
+              <View style={styles.skillsContainer}>
+                <Text style={styles.skillsTitle}>🎯 Habilidades:</Text>
+                {classSkills[cls.name]?.map((skill, idx) => (
+                  <Text key={idx} style={styles.skillInfo}>
+                    • {skill.name} (Nv. {skill.level})
+                  </Text>
+                ))}
               </View>
             </TouchableOpacity>
           ))}
@@ -205,7 +277,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.3)',
-    minHeight: 180,
+    minHeight: 220,
   },
   classEmoji: {
     fontSize: 32,
@@ -243,11 +315,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderLeftWidth: 3,
     borderLeftColor: 'gold',
+    marginBottom: 8,
   },
   specialText: {
     color: '#fffacd',
     fontSize: 10,
     fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  skillsContainer: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 8,
+    borderRadius: 6,
+  },
+  skillsTitle: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  skillInfo: {
+    color: 'white',
+    fontSize: 9,
+    marginBottom: 2,
     textAlign: 'center',
   }
 });
