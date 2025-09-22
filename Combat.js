@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, Modal } from 'react-native';
 
 export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, onComplete, onCombatStart }) {
   const [monsters, setMonsters] = useState([]);
@@ -10,6 +10,9 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const [combatStatus, setCombatStatus] = useState('ongoing');
   const [isProcessing, setIsProcessing] = useState(false);
   const [timeoutIds, setTimeoutIds] = useState([]);
+  const [showSkillsModal, setShowSkillsModal] = useState(false);
+  const [showItemsModal, setShowItemsModal] = useState(false);
+  const [activeBuffs, setActiveBuffs] = useState([]);
 
   useEffect(() => {
     return () => {
@@ -44,7 +47,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       
       setMonsters(newMonsters);
       setCurrentMonsterIndex(0);
-      setCombatLog([`Você entrou na dungeon ${dungeon.rank}!`]);
+      setCombatLog([`⚔️ Combate iniciado na ${dungeon.title}!`]);
       setIsPlayerTurn(true);
       setCombatStatus('ongoing');
       setIsProcessing(false);
@@ -57,7 +60,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const currentMonster = monsters[currentMonsterIndex];
 
   const addToLog = (message) => {
-    setCombatLog(prev => [message, ...prev.slice(0, 14)]);
+    setCombatLog(prev => [message, ...prev.slice(0, 8)]);
   };
 
   const addTimeout = (callback, delay) => {
@@ -84,7 +87,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
 
     addToLog(isCrit ? 
-      `💥 CRÍTICO! Você causou ${actualDamage} de dano!` :
+      `💥 CRÍTICO! ${actualDamage} de dano!` :
       `⚔️ Você causou ${actualDamage} de dano!`
     );
 
@@ -102,7 +105,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       if (currentMonsterIndex < monsters.length - 1) {
         addTimeout(() => {
           setCurrentMonsterIndex(prev => prev + 1);
-          addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
+          addToLog(`🐺 Próximo: ${monsters[currentMonsterIndex + 1]?.name}`);
           setIsPlayerTurn(true);
           setIsProcessing(false);
         }, 1000);
@@ -128,54 +131,90 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     }, 1000);
   };
 
-  const playerSkill = () => {
+  const useSkill = (skill) => {
     if (isProcessing || !isPlayerTurn || combatStatus !== 'ongoing' || !currentMonster) return;
     
     const playerMana = Number(player.mana) || 0;
-    if (playerMana < 20) {
-      addToLog("❌ Mana insuficiente (20 MP necessário)!");
+    if (playerMana < skill.manaCost) {
+      addToLog(`❌ Mana insuficiente para ${skill.name}!`);
       return;
     }
 
     setIsProcessing(true);
+    setShowSkillsModal(false);
     
     setPlayer(prev => ({
       ...prev,
-      mana: Math.max(0, (Number(prev.mana) || 0) - 20)
+      mana: Math.max(0, (Number(prev.mana) || 0) - skill.manaCost)
     }));
 
-    const playerAtk = Number(player.atk) || 10;
-    const monsterDef = Number(currentMonster.def) || 2;
-    
-    const skillDamage = Math.floor(playerAtk * 1.8);
-    const actualDamage = Math.max(1, skillDamage - monsterDef);
-    const currentMonsterHp = Number(currentMonster.currentHp) || 0;
-    const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
+    addToLog(`✨ ${skill.name}! (-${skill.manaCost} MP)`);
 
-    addToLog(`🔥 Skill especial! ${actualDamage} de dano! (-20 MP)`);
-
-    const newMonsters = monsters.map((monster, index) => 
-      index === currentMonsterIndex 
-        ? { ...monster, currentHp: newMonsterHp }
-        : monster
-    );
-    
-    setMonsters(newMonsters);
-
-    if (newMonsterHp <= 0) {
-      addToLog(`🎯 ${currentMonster.name} derrotado!`);
+    if (skill.effect === 'attack') {
+      const playerAtk = Number(player.atk) || 10;
+      const monsterDef = Number(currentMonster.def) || 2;
       
-      if (currentMonsterIndex < monsters.length - 1) {
-        addTimeout(() => {
-          setCurrentMonsterIndex(prev => prev + 1);
-          addToLog(`🐺 Próximo monstro: ${monsters[currentMonsterIndex + 1]?.name}`);
-          setIsPlayerTurn(true);
-          setIsProcessing(false);
-        }, 1000);
+      const skillDamage = Math.floor(playerAtk * skill.value);
+      const actualDamage = Math.max(1, skillDamage - monsterDef);
+      const currentMonsterHp = Number(currentMonster.currentHp) || 0;
+      const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
+
+      addToLog(`💥 Causou ${actualDamage} de dano!`);
+
+      const newMonsters = monsters.map((monster, index) => 
+        index === currentMonsterIndex 
+          ? { ...monster, currentHp: newMonsterHp }
+          : monster
+      );
+      
+      setMonsters(newMonsters);
+
+      if (newMonsterHp <= 0) {
+        addToLog(`🎯 ${currentMonster.name} derrotado!`);
+        
+        if (currentMonsterIndex < monsters.length - 1) {
+          addTimeout(() => {
+            setCurrentMonsterIndex(prev => prev + 1);
+            addToLog(`🐺 Próximo: ${monsters[currentMonsterIndex + 1]?.name}`);
+            setIsPlayerTurn(true);
+            setIsProcessing(false);
+          }, 1000);
+        } else {
+          addTimeout(() => victory(), 1000);
+        }
       } else {
-        addTimeout(() => victory(), 1000);
+        setIsPlayerTurn(false);
+        addTimeout(() => monsterTurn(), 1000);
       }
-    } else {
+    } else if (skill.effect === 'buff') {
+      const newBuff = {
+        type: 'attack',
+        value: skill.value,
+        duration: 2,
+        name: skill.name
+      };
+      setActiveBuffs(prev => [...prev, newBuff]);
+      addToLog(`⚡ ${skill.name} ativado! Ataque aumentado.`);
+      setIsPlayerTurn(false);
+      addTimeout(() => monsterTurn(), 1000);
+    } else if (skill.effect === 'defense') {
+      const newBuff = {
+        type: 'defense',
+        value: skill.value,
+        duration: 2,
+        name: skill.name
+      };
+      setActiveBuffs(prev => [...prev, newBuff]);
+      addToLog(`🛡️ ${skill.name} ativado! Defesa aumentada.`);
+      setIsPlayerTurn(false);
+      addTimeout(() => monsterTurn(), 1000);
+    } else if (skill.effect === 'heal') {
+      const healAmount = Math.floor(player.maxHp * skill.value);
+      setPlayer(prev => ({
+        ...prev,
+        hp: Math.min(prev.maxHp, prev.hp + healAmount)
+      }));
+      addToLog(`💖 ${skill.name}! +${healAmount} HP`);
       setIsPlayerTurn(false);
       addTimeout(() => monsterTurn(), 1000);
     }
@@ -331,6 +370,42 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     }
   };
 
+  const renderSkills = () => {
+    return player.skills.map((skill, index) => (
+      <TouchableOpacity 
+        key={index}
+        style={[
+          styles.skillButton,
+          (Number(player.mana) || 0) < skill.manaCost && styles.disabledButton
+        ]}
+        onPress={() => useSkill(skill)}
+        disabled={(Number(player.mana) || 0) < skill.manaCost}
+      >
+        <Text style={styles.skillIcon}>{skill.icon}</Text>
+        <Text style={styles.skillName}>{skill.name}</Text>
+        <Text style={styles.skillCost}>{skill.manaCost} MP</Text>
+      </TouchableOpacity>
+    ));
+  };
+
+  const renderItems = () => {
+    return player.inventory.map((item, index) => (
+      <TouchableOpacity 
+        key={index}
+        style={styles.itemButton}
+        onPress={() => {
+          useItem(item);
+          setShowItemsModal(false);
+        }}
+      >
+        <Text style={styles.itemText}>{item.name}</Text>
+        <Text style={styles.itemEffect}>
+          {item.effect === 'cura' ? `+${item.value} HP` : `+${item.value} MP`}
+        </Text>
+      </TouchableOpacity>
+    ));
+  };
+
   if (!currentMonster || monsters.length === 0) {
     return (
       <View style={styles.container}>
@@ -344,12 +419,22 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       <Text style={styles.title}>⚔️ Combate - {dungeon?.title}</Text>
       
       <View style={styles.stats}>
-        <Text style={styles.statText}>Seu HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
+        <Text style={styles.statText}>HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
         <Text style={styles.statText}>MP: {Number(player.mana) || 0}/{Number(player.maxMana) || 50}</Text>
         <Text style={styles.statText}>Monstro: {currentMonster.name}</Text>
         <Text style={styles.statText}>HP Monstro: {Number(currentMonster.currentHp) || 0}/{Number(currentMonster.hp) || 0}</Text>
         <Text style={styles.statText}>Monstros: {currentMonsterIndex + 1}/{monsters.length}</Text>
       </View>
+
+      {activeBuffs.length > 0 && (
+        <View style={styles.buffsContainer}>
+          {activeBuffs.map((buff, index) => (
+            <Text key={index} style={styles.buffText}>
+              {buff.type === 'attack' ? '⚡' : '🛡️'} {buff.name}
+            </Text>
+          ))}
+        </View>
+      )}
 
       <ScrollView style={styles.combatLog}>
         {combatLog.map((log, index) => (
@@ -360,7 +445,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       {combatStatus === 'ongoing' && isPlayerTurn && (
         <View style={styles.actions}>
           <TouchableOpacity 
-            style={[styles.attackButton, isProcessing && styles.disabledButton]} 
+            style={[styles.basicButton, isProcessing && styles.disabledButton]} 
             onPress={playerAttack}
             disabled={isProcessing}
           >
@@ -368,44 +453,76 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.defendButton, isProcessing && styles.disabledButton]} 
+            style={[styles.basicButton, isProcessing && styles.disabledButton]} 
             onPress={playerDefend}
             disabled={isProcessing}
           >
             <Text style={styles.buttonText}>🛡️ Defender</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.skillButton, (isProcessing || (Number(player.mana) || 0) < 20) && styles.disabledButton]} 
-            onPress={playerSkill}
-            disabled={isProcessing || (Number(player.mana) || 0) < 20}
-          >
-            <Text style={styles.buttonText}>🔥 Skill (20 MP)</Text>
-          </TouchableOpacity>
+          {player.skills.length > 0 && (
+            <TouchableOpacity 
+              style={[styles.specialButton, isProcessing && styles.disabledButton]}
+              onPress={() => setShowSkillsModal(true)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.buttonText}>✨ Habilidades</Text>
+            </TouchableOpacity>
+          )}
 
-          <View style={styles.itemsSection}>
-            <Text style={styles.itemsTitle}>Itens:</Text>
-            {player.inventory.map((item, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.itemButton, isProcessing && styles.disabledButton]}
-                onPress={() => useItem(item)}
-                disabled={isProcessing}
-              >
-                <Text style={styles.itemText}>{item.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {player.inventory.length > 0 && (
+            <TouchableOpacity 
+              style={[styles.specialButton, isProcessing && styles.disabledButton]}
+              onPress={() => setShowItemsModal(true)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.buttonText}>🎒 Itens</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity 
             style={[styles.fleeButton, isProcessing && styles.disabledButton]} 
             onPress={flee}
             disabled={isProcessing}
           >
-            <Text style={styles.fleeText}>🏃‍♂️ Fugir (70%)</Text>
+            <Text style={styles.fleeText}>🏃‍♂️ Fugir</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal visible={showSkillsModal} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>✨ Habilidades</Text>
+            <ScrollView style={styles.modalScroll}>
+              {renderSkills()}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.closeModalButton}
+              onPress={() => setShowSkillsModal(false)}
+            >
+              <Text style={styles.closeModalText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showItemsModal} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🎒 Itens</Text>
+            <ScrollView style={styles.modalScroll}>
+              {renderItems()}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.closeModalButton}
+              onPress={() => setShowItemsModal(false)}
+            >
+              <Text style={styles.closeModalText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {combatStatus === 'lost' && (
         <View style={styles.resultContainer}>
@@ -450,6 +567,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 2
   },
+  buffsContainer: {
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    padding: 5,
+    borderRadius: 5,
+    marginBottom: 5,
+  },
+  buffText: {
+    color: '#FFD700',
+    fontSize: 11,
+    marginBottom: 2,
+  },
   combatLog: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -466,51 +594,24 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: 10
   },
-  attackButton: {
-    backgroundColor: '#e74c3c',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  defendButton: {
+  basicButton: {
     backgroundColor: '#3498db',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
     marginBottom: 8
   },
-  skillButton: {
+  specialButton: {
     backgroundColor: '#9b59b6',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 8
   },
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 14
-  },
-  itemsSection: {
-    marginBottom: 12
-  },
-  itemsTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    marginBottom: 5,
-    fontSize: 14
-  },
-  itemButton: {
-    backgroundColor: '#27ae60',
-    padding: 8,
-    borderRadius: 5,
-    marginBottom: 4
-  },
-  itemText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 12
   },
   fleeButton: {
     backgroundColor: '#f39c12',
@@ -551,5 +652,73 @@ const styles = StyleSheet.create({
   resultSubText: {
     color: '#ccc',
     fontSize: 14
-  }
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  modalContent: {
+    backgroundColor: '#2c3e50',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalScroll: {
+    maxHeight: 200,
+  },
+  skillButton: {
+    backgroundColor: '#8e44ad',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  skillIcon: {
+    fontSize: 24,
+    marginBottom: 5,
+  },
+  skillName: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  skillCost: {
+    color: '#00FFFF',
+    fontSize: 12,
+  },
+  itemButton: {
+    backgroundColor: '#27ae60',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 8,
+  },
+  itemText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  itemEffect: {
+    color: '#CCCCCC',
+    fontSize: 12,
+  },
+  closeModalButton: {
+    backgroundColor: '#7f8c8d',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  closeModalText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
