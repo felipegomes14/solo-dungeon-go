@@ -150,7 +150,7 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
   const [error, setError] = useState(null);
   const [timerInterval, setTimerInterval] = useState(null);
 
-  // Estado inicial das quests com flexões limitadas a 50
+  // Estado inicial das quests
   const initialQuestState = {
     water: { current: 0, target: 2, name: "💧 Ingestão de Água", unit: "litros" },
     pushup: { current: 0, target: 50, name: "💪 Flexões", unit: "vezes" },
@@ -188,13 +188,12 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
     }
   }, [visible]);
 
-  // Configurar e limpar timer
+  // ✅ CORRIGIDO: Timer continua mesmo após conclusão das quests
   useEffect(() => {
-    if (visible && questState && !questState.finished) {
+    if (visible && questState) {
       const interval = setInterval(() => {
         setTotalSeconds(prev => {
           if (prev <= 1) {
-            clearInterval(interval);
             // Quando o tempo zera, resetamos automaticamente as atividades
             resetActivities();
             return 0;
@@ -206,7 +205,7 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
       setTimerInterval(interval);
       return () => clearInterval(interval);
     }
-  }, [visible, questState]);
+  }, [visible, questState]); // ✅ Removida a condição !questState.finished
 
   // Carregar quests quando o modal abrir
   useEffect(() => {
@@ -234,7 +233,7 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
         ...initialQuestState,
         lastUpdated: now
       }));
-      await AsyncStorage.setItem('soloDungeonLastReset', JSON.stringify(now));
+      await AsyncStorage.setItem('soloDungeonLastReset', now);
       setQuestState(initialQuestState);
       setTotalSeconds(24 * 60 * 60);
       
@@ -257,20 +256,17 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
       
       if (savedProgress) {
         const progress = JSON.parse(savedProgress);
-        const lastReset = savedLastReset ? new Date(JSON.parse(savedLastReset)) : new Date();
         
         // Verificar se já passaram 24 horas desde o último reset
-        if (shouldResetActivities(lastReset)) {
-          // Resetar atividades automaticamente
+        if (shouldResetActivities(savedLastReset)) {
           await resetActivities();
         } else {
-          // Continuar com o progresso salvo
           setQuestState(progress);
-          if (progress.lastUpdated && !progress.finished) {
+          if (progress.lastUpdated) {
             const now = new Date();
             const lastUpdated = new Date(progress.lastUpdated);
             const elapsedSeconds = Math.floor((now - lastUpdated) / 1000);
-            setTotalSeconds(prev => Math.max(0, 24 * 60 * 60 - elapsedSeconds));
+            setTotalSeconds(Math.max(0, 24 * 60 * 60 - elapsedSeconds));
           }
         }
       } else {
@@ -280,7 +276,7 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
           ...initialQuestState,
           lastUpdated: now
         }));
-        await AsyncStorage.setItem('soloDungeonLastReset', JSON.stringify(now));
+        await AsyncStorage.setItem('soloDungeonLastReset', now);
         setQuestState(initialQuestState);
         setTotalSeconds(24 * 60 * 60);
       }
@@ -341,40 +337,55 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
     
     if (player && setPlayer) {
       setPlayer(prevPlayer => {
-        const newXp = prevPlayer.xp + 100;
-        let newLevel = prevPlayer.level;
+        const currentXp = prevPlayer.xp || 0;
+        const currentLevel = prevPlayer.level || 1;
+        const newXp = currentXp + 100;
+        let newLevel = currentLevel;
         let xpRestante = newXp;
         
+        // Calcular level up
         while (xpRestante >= newLevel * 100) {
           xpRestante -= newLevel * 100;
           newLevel++;
         }
         
-        if (newLevel > prevPlayer.level) {
-          Alert.alert("🎉 Level Up!", `Você alcançou o nível ${newLevel} completando a Quest Diária!`);
+        const updatedPlayer = {
+          ...prevPlayer,
+          xp: xpRestante,
+          level: newLevel,
+          maxHp: prevPlayer.maxHp || 100,
+          hp: prevPlayer.hp || (prevPlayer.maxHp || 100),
+          atk: prevPlayer.atk || 10,
+          def: prevPlayer.def || 5,
+          maxMana: prevPlayer.maxMana || 50,
+          mana: prevPlayer.mana || (prevPlayer.maxMana || 50),
+          gold: prevPlayer.gold || 0
+        };
+        
+        // Aplicar bônus de level up se necessário
+        if (newLevel > currentLevel) {
+          const levelsGanhos = newLevel - currentLevel;
           
-          return {
-            ...prevPlayer,
-            xp: xpRestante,
-            level: newLevel,
-            maxHp: prevPlayer.maxHp + 20,
-            hp: prevPlayer.maxHp + 20,
-            atk: prevPlayer.atk + 5,
-            def: prevPlayer.def + 2,
-            maxMana: prevPlayer.maxMana + 10,
-            mana: prevPlayer.maxMana + 10
-          };
+          updatedPlayer.maxHp = updatedPlayer.maxHp + (20 * levelsGanhos);
+          updatedPlayer.hp = updatedPlayer.maxHp;
+          updatedPlayer.atk = updatedPlayer.atk + (5 * levelsGanhos);
+          updatedPlayer.def = updatedPlayer.def + (2 * levelsGanhos);
+          updatedPlayer.maxMana = updatedPlayer.maxMana + (10 * levelsGanhos);
+          updatedPlayer.mana = updatedPlayer.maxMana;
+          
+          Alert.alert(
+            "🎉 Level Up!", 
+            `Você alcançou o nível ${newLevel} completando a Quest Diária!`
+          );
         }
         
-        return {
-          ...prevPlayer,
-          xp: newXp
-        };
+        return updatedPlayer;
       });
     }
     
     Alert.alert("🏆 Missão Cumprida!", "Você ganhou 100 XP por completar a Quest Diária!");
     
+    // ✅ CORRIGIDO: Não limpa mais o timerInterval ao finalizar
     setQuestState(prevState => ({
       ...prevState,
       finished: true
@@ -382,9 +393,7 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
     
     saveQuestProgress({ ...questState, finished: true });
     
-    if (timerInterval) {
-      clearInterval(timerInterval);
-    }
+    // ❌ REMOVIDO: clearInterval(timerInterval) - O timer continua rodando
   };
 
   const formatTime = (seconds) => {
@@ -503,13 +512,14 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
             if (key === 'completed' || key === 'finished' || key === 'lastUpdated') return null;
             
             const isCompleted = goal.current >= goal.target;
+            const isDisabled = questState.finished; // Desabilita controles se quest finalizada
             
             return (
               <GoalItem
                 key={key}
                 goal={goal}
                 onUpdate={(value) => updateGoal(key, value)}
-                isCompleted={isCompleted}
+                isCompleted={isCompleted || isDisabled} // Mostra como concluído se quest finalizada
               />
             );
           })}
@@ -550,6 +560,8 @@ const QuestDiaria = ({ player, setPlayer, visible, onClose }) => {
     </Modal>
   );
 };
+
+// ... (os estilos permanecem os mesmos)
 
 const styles = StyleSheet.create({
   container: {
@@ -602,7 +614,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   header: {
-    backgroundColor: 'linear-gradient(135deg, #3a3a6d 0%, #2a2a5d 100%)',
+    backgroundColor: '#3a3a6d',
     padding: 25,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
@@ -672,7 +684,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: 'linear-gradient(90deg, #4CAF50 0%, #00ff00 100%)',
+    backgroundColor: '#4CAF50',
     borderRadius: 6,
   },
   progressText: {
@@ -765,7 +777,6 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 5,
-    transition: 'width 0.3s ease',
   },
   progressText: {
     fontSize: 16,
@@ -903,7 +914,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   finishButton: {
-    backgroundColor: 'linear-gradient(135deg, #4CAF50 0%, #00ff00 100%)',
+    backgroundColor: '#4CAF50',
     padding: 18,
     borderRadius: 30,
     alignItems: 'center',

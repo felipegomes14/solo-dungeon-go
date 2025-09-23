@@ -1,22 +1,39 @@
 import React from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
 import { styles } from "./AppStyles";
 
 const PlayerHUD = ({ player, level, xp, dungeons }) => {
-  const hpPercentage = (player.hp / player.maxHp) * 100;
-  const mpPercentage = (player.mana / player.maxMana) * 100;
-  const xpPercentage = (xp / (level * 100)) * 100;
+  // Usar os valores do player se as props separadas não forem fornecidas
+  const currentLevel = level || player?.level || 1;
+  const currentXp = xp !== undefined ? xp : (player?.xp || 0);
+  const currentDungeons = dungeons || [];
+  
+  // Garantir valores padrão para evitar erros
+  const safePlayer = {
+    hp: player?.hp || 100,
+    maxHp: player?.maxHp || 100,
+    mana: player?.mana || 50,
+    maxMana: player?.maxMana || 50,
+    atk: player?.atk || 10,
+    def: player?.def || 5,
+    gold: player?.gold || 0,
+    ...player
+  };
+  
+  const hpPercentage = (safePlayer.hp / safePlayer.maxHp) * 100;
+  const mpPercentage = (safePlayer.mana / safePlayer.maxMana) * 100;
+  const xpPercentage = (currentXp / (currentLevel * 100)) * 100;
 
   return (
     <View style={styles.playerHUD}>
       {/* Header com Level e Ouro */}
       <View style={styles.hudHeader}>
         <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>Lv.{level}</Text>
+          <Text style={styles.levelText}>Lv.{currentLevel}</Text>
         </View>
         <View style={styles.goldContainer}>
           <Text style={styles.goldIcon}>💰</Text>
-          <Text style={styles.goldText}>{player.gold}</Text>
+          <Text style={styles.goldText}>{safePlayer.gold}</Text>
         </View>
       </View>
 
@@ -36,7 +53,7 @@ const PlayerHUD = ({ player, level, xp, dungeons }) => {
             />
           </View>
           <Text style={styles.barText}>
-            {player.hp}/{player.maxHp}
+            {safePlayer.hp}/{safePlayer.maxHp}
           </Text>
         </View>
       </View>
@@ -57,7 +74,7 @@ const PlayerHUD = ({ player, level, xp, dungeons }) => {
             />
           </View>
           <Text style={styles.barText}>
-            {player.mana}/{player.maxMana}
+            {safePlayer.mana}/{safePlayer.maxMana}
           </Text>
         </View>
       </View>
@@ -78,7 +95,7 @@ const PlayerHUD = ({ player, level, xp, dungeons }) => {
             />
           </View>
           <Text style={styles.barText}>
-            {xp}/{level * 100} XP
+            {currentXp}/{currentLevel * 100} XP
           </Text>
         </View>
       </View>
@@ -87,19 +104,19 @@ const PlayerHUD = ({ player, level, xp, dungeons }) => {
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statIcon}>⚔️</Text>
-          <Text style={styles.statValue}>{player.atk}</Text>
+          <Text style={styles.statValue}>{safePlayer.atk}</Text>
           <Text style={styles.statLabel}>ATQ</Text>
         </View>
         
         <View style={styles.statItem}>
           <Text style={styles.statIcon}>🛡️</Text>
-          <Text style={styles.statValue}>{player.def}</Text>
+          <Text style={styles.statValue}>{safePlayer.def}</Text>
           <Text style={styles.statLabel}>DEF</Text>
         </View>
         
         <View style={styles.statItem}>
           <Text style={styles.statIcon}>🏰</Text>
-          <Text style={styles.statValue}>{dungeons.length}</Text>
+          <Text style={styles.statValue}>{currentDungeons.length}</Text>
           <Text style={styles.statLabel}>DUN</Text>
         </View>
       </View>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Modal, Alert, Text } from "react-native";
+import { View, Modal, Alert, Text, ActivityIndicator } from "react-native";
 import MapView from "react-native-maps";
 
 import useLocation from "./UseLocation";
@@ -14,10 +14,9 @@ import DungeonConfirmation from "./DungeonConfirmation";
 import EquipamentScreen from "./EquipamentScreen";
 import ShopScreen from "./ShopScreen";
 import QuestDiaria from "./QuestDiaria";
+import Menu from "./Menu";
 import ErrorBoundary from './ErrorBoundary';
 
-import PlayerHUD from "./PlayerHUD";
-import ControlsOverlay from "./ControlsOverlay";
 import DungeonMarkers from "./DungeonMarkers";
 import RegenIndicator from "./RegenIndicator";
 
@@ -26,7 +25,7 @@ import { styles } from "./AppStyles";
 export default function App() {
   const {
     location,
-    isLoading,
+    isLoading: locationLoading,
     safeCoords
   } = useLocation();
 
@@ -45,7 +44,8 @@ export default function App() {
     resetarSeMorto,
     entrarEmCombate,
     sairDoCombate,
-    isInCombat
+    isInCombat,
+    isLoading: playerLoading
   } = usePlayer();
 
   const {
@@ -71,8 +71,15 @@ export default function App() {
     gerarDungeons
   } = useDungeons();
 
+  const [appLoading, setAppLoading] = useState(true);
+
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppLoading(false);
+    }, 2000);
+
     return () => {
+      clearTimeout(timer);
       setCurrentDungeon(null);
       setCurrentGame(null);
       setShowDungeonConfirm(false);
@@ -91,17 +98,38 @@ export default function App() {
     
     setPlayer(prev => ({
       ...prev,
-      gold: prev.gold + recompensaTotal.gold,
-      inventory: [...prev.inventory, ...recompensaTotal.itens]
+      gold: (prev.gold || 0) + recompensaTotal.gold,
+      inventory: [...(prev.inventory || []), ...recompensaTotal.itens]
     }));
     
     return recompensaTotal;
   };
 
-  if (isLoading) {
+  const voltarAoMapa = () => {
+    setShowClassSelection(false);
+    setShowInventory(false);
+    setShowEquipament(false);
+    setShowShop(false);
+    setShowQuest(false);
+    setCurrentDungeon(null);
+    setCurrentGame(null);
+    setShowDungeonConfirm(false);
+  };
+
+  if (locationLoading || playerLoading || appLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Carregando localização...</Text>
+        <ActivityIndicator size="large" color="#ffcc00" />
+        <Text style={{ color: '#fff', marginTop: 20, fontSize: 18 }}>Carregando Aventura...</Text>
+      </View>
+    );
+  }
+
+  if (!safeCoords) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: '#ff0000', fontSize: 20 }}>❌ Erro de Localização</Text>
+        <Text style={{ color: '#fff', marginTop: 10 }}>Verifique as permissões de GPS</Text>
       </View>
     );
   }
@@ -128,19 +156,16 @@ export default function App() {
         isInCombat={isInCombat}
       />
 
-      <ControlsOverlay
-        onShowShop={() => setShowShop(true)}
-        onShowEquipament={() => setShowEquipament(true)}
-        onShowInventory={() => setShowInventory(true)}
-        onRefreshDungeons={() => gerarDungeons(safeCoords.latitude, safeCoords.longitude)}
-        onShowQuest={() => setShowQuest(true)}
-      />
-
-      <PlayerHUD
+      <Menu
         player={player}
+        setPlayer={setPlayer}
         level={level}
         xp={xp}
         dungeons={dungeons}
+        onRefreshDungeons={() => gerarDungeons(safeCoords.latitude, safeCoords.longitude)}
+        onShowMap={voltarAoMapa}
+        onShowClassSelection={() => setShowClassSelection(true)}
+        onShowQuest={() => setShowQuest(true)}
       />
 
       <Modal visible={showClassSelection} animationType="slide">
@@ -150,12 +175,14 @@ export default function App() {
             setShowClassSelection(false);
             setPlayer(prev => ({
               ...prev,
-              atk: prev.atk + cls.bonusAtk,
-              def: prev.def + cls.bonusDef,
-              maxHp: prev.maxHp + cls.bonusHp,
-              hp: prev.maxHp + cls.bonusHp
+              atk: (prev.atk || 10) + cls.bonusAtk,
+              def: (prev.def || 5) + cls.bonusDef,
+              maxHp: (prev.maxHp || 100) + cls.bonusHp,
+              hp: (prev.maxHp || 100) + cls.bonusHp,
+              maxMana: (prev.maxMana || 50) + (cls.bonusMana || 0),
+              mana: (prev.maxMana || 50) + (cls.bonusMana || 0)
             }));
-            Alert.alert("🏆 Classe escolhida!", `Você agora é ${cls.name}`);
+            Alert.alert("🏆 Classe Escolhida!", `Você agora é um ${cls.name}!`);
           }}
         />
       </Modal>
@@ -235,23 +262,12 @@ export default function App() {
         )}
       </Modal>
 
-      <Modal visible={showQuest} animationType="slide">
-        <QuestDiaria
-          player={player}
-          setPlayer={setPlayer}
-          visible={showQuest}
-          onClose={() => setShowQuest(false)}
-        />
-      </Modal>
-
-      <ErrorBoundary onBack={() => setShowQuest(false)}>
-        <QuestDiaria
-          player={player}
-          setPlayer={setPlayer}
-          visible={showQuest}
-          onClose={() => setShowQuest(false)}
-        />
-      </ErrorBoundary>
+      <QuestDiaria
+        player={player}
+        setPlayer={setPlayer}
+        visible={showQuest}
+        onClose={() => setShowQuest(false)}
+      />
     </View>
   );
 }
