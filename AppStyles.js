@@ -243,5 +243,10 @@ export const styles = StyleSheet.create({
     backdropFilter: 'blur(10px)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-  }
+  },
+  playerHudContainer: {
+  flexGrow: 1,
+  justifyContent: 'center',
+  padding: 10,
+},
 });

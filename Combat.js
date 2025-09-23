@@ -13,6 +13,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [activeBuffs, setActiveBuffs] = useState([]);
+  const [bossSpawned, setBossSpawned] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -20,38 +21,87 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     };
   }, [timeoutIds]);
 
+  // Sistema de monstros por rank com bosses
   const monsterTemplates = {
-    'F': { name: "Goblin", hp: 30, atk: 8, def: 2, xp: 15, gold: 10 },
-    'E': { name: "Orc", hp: 50, atk: 12, def: 3, xp: 25, gold: 20 },
-    'D': { name: "Esqueleto", hp: 70, atk: 15, def: 4, xp: 35, gold: 30 },
-    'C': { name: "Lobisomem", hp: 90, atk: 18, def: 5, xp: 45, gold: 40 },
-    'B': { name: "Vampiro", hp: 120, atk: 22, def: 6, xp: 60, gold: 50 },
-    'A': { name: "Demônio", hp: 150, atk: 25, def: 8, xp: 80, gold: 70 },
-    'S': { name: "Dragão", hp: 200, atk: 30, def: 10, xp: 100, gold: 100 }
+    'F': {
+      common: { name: "Goblin", hp: 50, atk: 8, def: 2, xp: 15, gold: 10, emoji: "👺" },
+      boss: { name: "Orc Chefe", hp: 80, atk: 15, def: 5, xp: 50, gold: 40, emoji: "👹" }
+    },
+    'E': {
+      common: { name: "Lobo", hp: 70, atk: 10, def: 3, xp: 20, gold: 15, emoji: "🐺" },
+      boss: { name: "Glabro", hp: 100, atk: 18, def: 6, xp: 60, gold: 50, emoji: "🐗" }
+    },
+    'D': {
+      common: { name: "Esqueleto", hp: 90, atk: 12, def: 4, xp: 25, gold: 20, emoji: "💀" },
+      boss: { name: "Lich", hp: 120, atk: 20, def: 8, xp: 70, gold: 60, emoji: "🧙‍♂️" }
+    },
+    'C': {
+      common: { name: "Kobold", hp: 110, atk: 14, def: 5, xp: 30, gold: 25, emoji: "🐲" },
+      boss: { name: "Lycan", hp: 140, atk: 22, def: 10, xp: 80, gold: 70, emoji: "🐺" }
+    },
+    'B': {
+      common: { name: "Ghoul", hp: 120, atk: 16, def: 6, xp: 35, gold: 30, emoji: "🧟" },
+      boss: { name: "Conde Vampiro", hp: 160, atk: 24, def: 12, xp: 90, gold: 80, emoji: "🧛‍♂️" }
+    },
+    'A': {
+      common: { name: "Tritão", hp: 150, atk: 18, def: 7, xp: 40, gold: 35, emoji: "🧜‍♂️" },
+      boss: { name: "Leviathan", hp: 180, atk: 26, def: 14, xp: 100, gold: 90, emoji: "🐉" }
+    },
+    'S': {
+      common: { name: "Wyvern", hp: 170, atk: 20, def: 8, xp: 45, gold: 40, emoji: "🐲" },
+      boss: { name: "Drake", hp: 200, atk: 28, def: 16, xp: 110, gold: 100, emoji: "🐉" }
+    },
+    'SS': {
+      common: { name: "Dragonete", hp: 200, atk: 22, def: 9, xp: 50, gold: 45, emoji: "🐲" },
+      boss: { name: "Dragão", hp: 250, atk: 32, def: 18, xp: 130, gold: 120, emoji: "🐉" }
+    },
+    'SSS': {
+      common: { name: "Dragão", hp: 300, atk: 25, def: 10, xp: 60, gold: 50, emoji: "🐉" },
+      boss: { name: "Deus X-Máquina", hp: 500, atk: 35, def: 20, xp: 150, gold: 150, emoji: "🤖" }
+    }
   };
 
-  // Inicializar combate
+  // Inicializar combate com monstros variáveis e boss
   useEffect(() => {
     if (dungeon) {
-      const monsterCount = Math.min(3, 1 + Math.floor(dungeon.difficulty / 2));
+      // Número aleatório de monstros comuns (1-10)
+      const minMonsters = 1;
+      const maxMonsters = 10;
+      const commonMonsterCount = Math.floor(Math.random() * (maxMonsters - minMonsters + 1)) + minMonsters;
+      
+      const rankData = monsterTemplates[dungeon.rank] || monsterTemplates['F'];
       const newMonsters = [];
       
-      for (let i = 0; i < monsterCount; i++) {
-        const template = monsterTemplates[dungeon.rank] || monsterTemplates['F'];
+      // Adicionar monstros comuns
+      for (let i = 0; i < commonMonsterCount; i++) {
         newMonsters.push({
-          ...template,
-          currentHp: template.hp,
-          id: i
+          ...rankData.common,
+          currentHp: rankData.common.hp,
+          id: i,
+          isBoss: false
         });
       }
       
+      // Adicionar boss no final
+      newMonsters.push({
+        ...rankData.boss,
+        currentHp: rankData.boss.hp,
+        id: commonMonsterCount,
+        isBoss: true
+      });
+      
       setMonsters(newMonsters);
       setCurrentMonsterIndex(0);
-      setCombatLog([`⚔️ Combate iniciado na ${dungeon.title}!`]);
+      setCombatLog([
+        `⚔️ Entrou na ${dungeon.title}!`,
+        `🐺 Encontrou ${commonMonsterCount} ${rankData.common.name}(s) comum(ns)!`,
+        `👑 Um poderoso ${rankData.boss.name} aguarda no final!`
+      ]);
       setIsPlayerTurn(true);
       setCombatStatus('ongoing');
       setIsProcessing(false);
       setIsDefending(false);
+      setBossSpawned(false);
       
       onCombatStart();
     }
@@ -60,7 +110,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const currentMonster = monsters[currentMonsterIndex];
 
   const addToLog = (message) => {
-    setCombatLog(prev => [message, ...prev.slice(0, 8)]);
+    setCombatLog(prev => [message, ...prev.slice(0, 10)]);
   };
 
   const addTimeout = (callback, delay) => {
@@ -74,10 +124,18 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     
     setIsProcessing(true);
     
+    // Aplicar buffs de ataque
+    let attackMultiplier = 1;
+    activeBuffs.forEach(buff => {
+      if (buff.type === 'attack') {
+        attackMultiplier *= buff.value;
+      }
+    });
+    
     const playerAtk = Number(player.atk) || 10;
     const monsterDef = Number(currentMonster.def) || 2;
     
-    const baseDamage = playerAtk;
+    const baseDamage = Math.floor(playerAtk * attackMultiplier);
     const critChance = 0.2;
     const isCrit = Math.random() < critChance;
     const damage = isCrit ? Math.floor(baseDamage * 1.5) : baseDamage;
@@ -87,8 +145,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     const newMonsterHp = Math.max(0, currentMonsterHp - actualDamage);
 
     addToLog(isCrit ? 
-      `💥 CRÍTICO! ${actualDamage} de dano!` :
-      `⚔️ Você causou ${actualDamage} de dano!`
+      `💥 CRÍTICO! ${actualDamage} de dano em ${currentMonster.name}!` :
+      `⚔️ Causou ${actualDamage} de dano em ${currentMonster.name}!`
     );
 
     const newMonsters = monsters.map((monster, index) => 
@@ -100,17 +158,28 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     setMonsters(newMonsters);
 
     if (newMonsterHp <= 0) {
-      addToLog(`🎯 ${currentMonster.name} derrotado!`);
-      
-      if (currentMonsterIndex < monsters.length - 1) {
-        addTimeout(() => {
-          setCurrentMonsterIndex(prev => prev + 1);
-          addToLog(`🐺 Próximo: ${monsters[currentMonsterIndex + 1]?.name}`);
-          setIsPlayerTurn(true);
-          setIsProcessing(false);
-        }, 1000);
-      } else {
+      if (currentMonster.isBoss) {
+        addToLog(`🎉 ${currentMonster.emoji} ${currentMonster.name} derrotado! VITÓRIA!`);
         addTimeout(() => victory(), 1000);
+      } else {
+        addToLog(`✅ ${currentMonster.emoji} ${currentMonster.name} derrotado!`);
+        
+        if (currentMonsterIndex < monsters.length - 1) {
+          addTimeout(() => {
+            const nextMonster = monsters[currentMonsterIndex + 1];
+            setCurrentMonsterIndex(prev => prev + 1);
+            
+            if (nextMonster.isBoss && !bossSpawned) {
+              addToLog(`🚨 ALERTA! ${nextMonster.emoji} ${nextMonster.name} apareceu!`);
+              setBossSpawned(true);
+            } else {
+              addToLog(`➡️ Próximo: ${nextMonster.emoji} ${nextMonster.name}`);
+            }
+            
+            setIsPlayerTurn(true);
+            setIsProcessing(false);
+          }, 1000);
+        }
       }
     } else {
       setIsPlayerTurn(false);
@@ -148,7 +217,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       mana: Math.max(0, (Number(prev.mana) || 0) - skill.manaCost)
     }));
 
-    addToLog(`✨ ${skill.name}! (-${skill.manaCost} MP)`);
+    addToLog(`✨ ${skill.name} em ${currentMonster.name}! (-${skill.manaCost} MP)`);
 
     if (skill.effect === 'attack') {
       const playerAtk = Number(player.atk) || 10;
@@ -170,17 +239,28 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       setMonsters(newMonsters);
 
       if (newMonsterHp <= 0) {
-        addToLog(`🎯 ${currentMonster.name} derrotado!`);
-        
-        if (currentMonsterIndex < monsters.length - 1) {
-          addTimeout(() => {
-            setCurrentMonsterIndex(prev => prev + 1);
-            addToLog(`🐺 Próximo: ${monsters[currentMonsterIndex + 1]?.name}`);
-            setIsPlayerTurn(true);
-            setIsProcessing(false);
-          }, 1000);
-        } else {
+        if (currentMonster.isBoss) {
+          addToLog(`🎉 ${currentMonster.emoji} ${currentMonster.name} derrotado! VITÓRIA!`);
           addTimeout(() => victory(), 1000);
+        } else {
+          addToLog(`✅ ${currentMonster.emoji} ${currentMonster.name} derrotado!`);
+          
+          if (currentMonsterIndex < monsters.length - 1) {
+            addTimeout(() => {
+              const nextMonster = monsters[currentMonsterIndex + 1];
+              setCurrentMonsterIndex(prev => prev + 1);
+              
+              if (nextMonster.isBoss && !bossSpawned) {
+                addToLog(`🚨 ALERTA! ${nextMonster.emoji} ${nextMonster.name} apareceu!`);
+                setBossSpawned(true);
+              } else {
+                addToLog(`➡️ Próximo: ${nextMonster.emoji} ${nextMonster.name}`);
+              }
+              
+              setIsPlayerTurn(true);
+              setIsProcessing(false);
+            }, 1000);
+          }
         }
       } else {
         setIsPlayerTurn(false);
@@ -226,8 +306,16 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       return;
     }
 
+    // Aplicar buffs de defesa
+    let defenseMultiplier = 1;
+    activeBuffs.forEach(buff => {
+      if (buff.type === 'defense') {
+        defenseMultiplier *= buff.value;
+      }
+    });
+
     const monsterAtk = Number(currentMonster.atk) || 8;
-    const playerDefValue = Number(player.def) || 5;
+    const playerDefValue = Math.floor((Number(player.def) || 5) * defenseMultiplier);
     
     const defenseBonus = isDefending ? playerDefValue * 2 : playerDefValue;
     const monsterDamage = Math.max(1, monsterAtk - defenseBonus);
@@ -237,14 +325,28 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     const newHp = Math.max(0, playerHp - actualDamage);
 
     addToLog(isDefending ? 
-      `🛡️ ${currentMonster.name} causou ${actualDamage} de dano (defendido!)` :
-      `👹 ${currentMonster.name} causou ${actualDamage} de dano!`
+      `🛡️ ${currentMonster.emoji} ${currentMonster.name} causou ${actualDamage} de dano (defendido!)` :
+      `👹 ${currentMonster.emoji} ${currentMonster.name} causou ${actualDamage} de dano!`
     );
 
     setPlayer(prev => ({
       ...prev,
       hp: newHp
     }));
+
+    // Atualizar duração dos buffs
+    setActiveBuffs(prev => {
+      const updatedBuffs = prev.map(buff => ({
+        ...buff,
+        duration: buff.duration - 1
+      })).filter(buff => buff.duration > 0);
+      
+      if (prev.length > updatedBuffs.length) {
+        addToLog("💨 Efeito de buff desapareceu.");
+      }
+      
+      return updatedBuffs;
+    });
 
     if (newHp <= 0) {
       addToLog('💀 Você foi derrotado!');
@@ -258,31 +360,41 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
   const victory = () => {
     setCombatStatus('won');
+    
     const totalXp = monsters.reduce((sum, m) => sum + (Number(m.xp) || 0), 0);
     const totalGold = monsters.reduce((sum, m) => sum + (Number(m.gold) || 0), 0);
     
-    addToLog(`🎉 Vitória! +${totalXp} XP e +${totalGold} de ouro!`);
+    // Bônus por derrotar o boss
+    const bossBonus = dungeon.difficulty * 10;
+    const totalXpWithBonus = totalXp + bossBonus;
+    const totalGoldWithBonus = totalGold + bossBonus;
+    
+    addToLog(`🎉 Vitória! +${totalXpWithBonus} XP e +${totalGoldWithBonus} de ouro!`);
+    addToLog(`⭐ Bônus de boss: +${bossBonus} XP e Ouro!`);
     
     const recompensa = {
-      xp: totalXp,
-      gold: totalGold,
+      xp: totalXpWithBonus,
+      gold: totalGoldWithBonus,
       itens: [
-        { type: 'poção', name: 'Poção de Cura', effect: 'cura', value: 30 },
-        { type: 'poção', name: 'Poção de Mana', effect: 'mana', value: 20 }
+        { type: 'poção', name: 'Poção de Cura', effect: 'cura', value: 30 + dungeon.difficulty * 5 },
+        { type: 'poção', name: 'Poção de Mana', effect: 'mana', value: 20 + dungeon.difficulty * 3 },
+        { type: 'equipamento', name: `Tesouro do ${monsterTemplates[dungeon.rank].boss.name}`, effect: 'special', value: dungeon.difficulty }
       ]
     };
     
-    ganharXp(totalXp);
+    ganharXp(totalXpWithBonus);
     
     addTimeout(() => {
       setPlayer(prev => ({
         ...prev,
-        gold: (Number(prev.gold) || 0) + totalGold,
+        gold: (Number(prev.gold) || 0) + totalGoldWithBonus,
         inventory: [...prev.inventory, ...recompensa.itens]
       }));
       onComplete(recompensa);
     }, 2000);
   };
+
+  // ... (funções useItem, flee, renderSkills, renderItems permanecem as mesmas)
 
   const useItem = (item) => {
     if (isProcessing || combatStatus !== 'ongoing') return;
@@ -400,7 +512,9 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       >
         <Text style={styles.itemText}>{item.name}</Text>
         <Text style={styles.itemEffect}>
-          {item.effect === 'cura' ? `+${item.value} HP` : `+${item.value} MP`}
+          {item.effect === 'cura' ? `+${item.value} HP` : 
+           item.effect === 'mana' ? `+${item.value} MP` : 
+           'Efeito Especial'}
         </Text>
       </TouchableOpacity>
     ));
@@ -414,23 +528,32 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     );
   }
 
+  const commonMonstersCount = monsters.filter(m => !m.isBoss).length;
+  const currentMonsterNumber = currentMonsterIndex + 1;
+  const totalMonsters = monsters.length;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>⚔️ Combate - {dungeon?.title}</Text>
+      <Text style={styles.title}>⚔️ {dungeon?.title}</Text>
       
       <View style={styles.stats}>
         <Text style={styles.statText}>HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
         <Text style={styles.statText}>MP: {Number(player.mana) || 0}/{Number(player.maxMana) || 50}</Text>
-        <Text style={styles.statText}>Monstro: {currentMonster.name}</Text>
-        <Text style={styles.statText}>HP Monstro: {Number(currentMonster.currentHp) || 0}/{Number(currentMonster.hp) || 0}</Text>
-        <Text style={styles.statText}>Monstros: {currentMonsterIndex + 1}/{monsters.length}</Text>
+        <Text style={[styles.statText, currentMonster.isBoss && styles.bossText]}>
+          {currentMonster.emoji} {currentMonster.name} {currentMonster.isBoss ? '(BOSS)' : ''}
+        </Text>
+        <Text style={styles.statText}>HP: {Number(currentMonster.currentHp) || 0}/{Number(currentMonster.hp) || 0}</Text>
+        <Text style={styles.statText}>
+          Progresso: {currentMonsterNumber}/{totalMonsters} 
+          ({commonMonstersCount} comuns + 1 boss)
+        </Text>
       </View>
 
       {activeBuffs.length > 0 && (
         <View style={styles.buffsContainer}>
           {activeBuffs.map((buff, index) => (
             <Text key={index} style={styles.buffText}>
-              {buff.type === 'attack' ? '⚡' : '🛡️'} {buff.name}
+              {buff.type === 'attack' ? '⚡' : '🛡️'} {buff.name} ({buff.duration} turnos)
             </Text>
           ))}
         </View>
@@ -535,8 +658,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
       {combatStatus === 'won' && (
         <View style={styles.resultContainer}>
-          <Text style={styles.resultText}>🎉 Vitória!</Text>
-          <Text style={styles.resultSubText}>Toque para continuar...</Text>
+          <Text style={styles.resultText}>🎉 Vitória Épica!</Text>
+          <Text style={styles.resultSubText}>Derrotou todos os inimigos e o boss!</Text>
         </View>
       )}
     </View>
@@ -566,6 +689,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     marginBottom: 2
+  },
+  bossText: {
+    color: '#FFD700',
+    fontWeight: 'bold'
   },
   buffsContainer: {
     backgroundColor: 'rgba(255,215,0,0.2)',
