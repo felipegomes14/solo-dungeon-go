@@ -27,7 +27,8 @@ const Menu = ({
   onRefreshDungeons,
   onShowMap,
   onShowClassSelection,
-  onShowQuest
+  onShowQuest,
+  onShowAlquimia  // ← Nova prop para alquimia
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeScreen, setActiveScreen] = useState(null);
@@ -84,6 +85,9 @@ const Menu = ({
       if (item.screen === 'quests') {
         onShowQuest();
         closeMenu();
+      } else if (item.screen === 'alquimia') {
+        onShowAlquimia();
+        closeMenu();
       } else {
         openScreen(item.screen);
       }
@@ -111,6 +115,13 @@ const Menu = ({
       description: 'Comprar itens',
       color: '#f39c12',
       screen: 'shop'
+    },
+    {
+      id: 'alquimia',
+      title: '🧪 Alquimia',
+      description: 'Criar poções e equipamentos',
+      color: '#8e44ad',
+      screen: 'alquimia'
     },
     {
       id: 'quests',

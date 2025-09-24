@@ -16,6 +16,7 @@ import ShopScreen from "./ShopScreen";
 import QuestDiaria from "./QuestDiaria";
 import Menu from "./Menu";
 import ErrorBoundary from './ErrorBoundary';
+import Alquimia from "./Alquimia";
 
 import DungeonMarkers from "./DungeonMarkers";
 import RegenIndicator from "./RegenIndicator";
@@ -71,6 +72,10 @@ export default function App() {
     gerarDungeons
   } = useDungeons();
 
+  // Estados para controlar a alquimia e o menu
+  const [showAlquimia, setShowAlquimia] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const [appLoading, setAppLoading] = useState(true);
 
   useEffect(() => {
@@ -88,6 +93,8 @@ export default function App() {
       setShowEquipament(false);
       setShowShop(false);
       setShowQuest(false);
+      setShowAlquimia(false);
+      setIsMenuOpen(false);
     };
   }, []);
 
@@ -96,11 +103,27 @@ export default function App() {
     
     ganharXp(recompensaTotal.xp);
     
-    setPlayer(prev => ({
-      ...prev,
-      gold: (prev.gold || 0) + recompensaTotal.gold,
-      inventory: [...(prev.inventory || []), ...recompensaTotal.itens]
-    }));
+    setPlayer(prev => {
+      // Adicionar materiais ao inventário de materiais
+      const newMaterials = [...(prev.materials || [])];
+      if (recompensaTotal.materials) {
+        recompensaTotal.materials.forEach(materialName => {
+          const existingMaterial = newMaterials.find(m => m.name === materialName);
+          if (existingMaterial) {
+            existingMaterial.quantity += 1;
+          } else {
+            newMaterials.push({ name: materialName, quantity: 1 });
+          }
+        });
+      }
+
+      return {
+        ...prev,
+        gold: (prev.gold || 0) + (recompensaTotal.gold || 0),
+        inventory: [...(prev.inventory || []), ...(recompensaTotal.itens || [])],
+        materials: newMaterials
+      };
+    });
     
     return recompensaTotal;
   };
@@ -111,9 +134,17 @@ export default function App() {
     setShowEquipament(false);
     setShowShop(false);
     setShowQuest(false);
+    setShowAlquimia(false);
+    setIsMenuOpen(false);
     setCurrentDungeon(null);
     setCurrentGame(null);
     setShowDungeonConfirm(false);
+  };
+
+  // Função para fechar o menu quando abrir qualquer modal
+  const abrirModalComMenu = (setModalFunction) => {
+    setIsMenuOpen(false);
+    setModalFunction(true);
   };
 
   if (locationLoading || playerLoading || appLoading) {
@@ -162,10 +193,16 @@ export default function App() {
         level={level}
         xp={xp}
         dungeons={dungeons}
-        onRefreshDungeons={() => gerarDungeons(safeCoords.latitude, safeCoords.longitude)}
+        onRefreshDungeons={() => {
+          setIsMenuOpen(false);
+          gerarDungeons(safeCoords.latitude, safeCoords.longitude);
+        }}
         onShowMap={voltarAoMapa}
-        onShowClassSelection={() => setShowClassSelection(true)}
-        onShowQuest={() => setShowQuest(true)}
+        onShowClassSelection={() => abrirModalComMenu(setShowClassSelection)}
+        onShowQuest={() => abrirModalComMenu(setShowQuest)}
+        onShowAlquimia={() => abrirModalComMenu(setShowAlquimia)}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
       />
 
       <Modal visible={showClassSelection} animationType="slide">
@@ -208,6 +245,15 @@ export default function App() {
           player={player}
           setPlayer={setPlayer}
           onClose={() => setShowShop(false)}
+        />
+      </Modal>
+
+      <Modal visible={showAlquimia} animationType="slide">
+        <Alquimia
+          player={player}
+          setPlayer={setPlayer}
+          visible={showAlquimia}
+          onClose={() => setShowAlquimia(false)}
         />
       </Modal>
 

@@ -140,7 +140,8 @@ const useDungeons = () => {
     const recompensaTotal = {
       xp: (recompensaBase.xp || 0) + (recompensaExtra.xp || 0),
       gold: (recompensaBase.gold || 0) + (recompensaExtra.gold || 0),
-      itens: [...(recompensaBase.itens || []), ...(recompensaExtra.itens || [])]
+      itens: [...(recompensaBase.itens || []), ...(recompensaExtra.itens || [])],
+      materials: recompensaExtra.materials || []
     };
 
     setDungeons(prev => prev.map(d =>
@@ -149,7 +150,8 @@ const useDungeons = () => {
 
     Alert.alert(
       "🎉 Dungeon Concluída!",
-      `Recompensas:\n+${recompensaTotal.xp} XP\n+${recompensaTotal.gold} Ouro\n+${recompensaTotal.itens.length} Itens`
+      `Recompensas:\n+${recompensaTotal.xp} XP\n+${recompensaTotal.gold} Ouro\n+${recompensaTotal.itens.length} Itens` +
+      (recompensaTotal.materials.length > 0 ? `\n+${recompensaTotal.materials.length} Materiais` : '')
     );
 
     return recompensaTotal;

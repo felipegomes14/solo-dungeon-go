@@ -418,6 +418,7 @@ const usePlayer = () => {
     ],
     equipament: {},
     skills: [],
+    materials: [],
     playerClass: null
   });
 
