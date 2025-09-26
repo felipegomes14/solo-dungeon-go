@@ -18,6 +18,50 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     bracelete: ['bracelete', 'braçadeira', 'pulseira']
   };
 
+  // Função para agrupar itens iguais no inventário - SIMPLIFICADA
+  const getGroupedInventory = () => {
+    const groupedItems = {};
+    
+    player.inventory.forEach(item => {
+      // Chave simplificada: agrupa apenas por nome e tipo (ignora origem, ID, etc)
+      const key = `${item.name}-${item.type}`.toLowerCase();
+      
+      if (!groupedItems[key]) {
+        groupedItems[key] = {
+          ...item,
+          quantity: 1,
+          ids: [item.id]
+        };
+      } else {
+        groupedItems[key].quantity += 1;
+        groupedItems[key].ids.push(item.id);
+        
+        // Mantém o maior valor de efeito se houver diferenças
+        if (item.value > (groupedItems[key].value || 0)) {
+          groupedItems[key].value = item.value;
+        }
+        
+        // Combina bônus se houver diferenças
+        if (item.bonus) {
+          if (!groupedItems[key].bonus) {
+            groupedItems[key].bonus = { ...item.bonus };
+          } else {
+            Object.keys(item.bonus).forEach(stat => {
+              groupedItems[key].bonus[stat] = Math.max(
+                groupedItems[key].bonus[stat] || 0,
+                item.bonus[stat]
+              );
+            });
+          }
+        }
+      }
+    });
+    
+    return Object.values(groupedItems);
+  };
+
+  const groupedInventory = getGroupedInventory();
+
   const animateButton = () => {
     Animated.sequence([
       Animated.timing(scaleAnim, {
@@ -36,9 +80,16 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
   };
 
   // Função para equipar item
-  const equipItem = (item) => {
+  const equipItem = (groupedItem) => {
+    const itemToEquip = player.inventory.find(item => item.id === groupedItem.ids[0]);
+    
+    if (!itemToEquip) {
+      Alert.alert("❌ Erro", "Item não encontrado no inventário!");
+      return;
+    }
+
     const slot = Object.keys(itemCategories).find(key => 
-      itemCategories[key].includes(item.type.toLowerCase())
+      itemCategories[key].includes(itemToEquip.type.toLowerCase())
     );
 
     if (!slot) {
@@ -53,7 +104,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
       const currentInventory = [...prev.inventory];
       
       // Remove o item do inventário
-      const itemIndex = currentInventory.findIndex(invItem => invItem.id === item.id);
+      const itemIndex = currentInventory.findIndex(invItem => invItem.id === itemToEquip.id);
       if (itemIndex !== -1) {
         currentInventory.splice(itemIndex, 1);
       }
@@ -64,33 +115,43 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
       }
 
       // Equipa o novo item
-      currentEquipament[slot] = item;
+      currentEquipament[slot] = itemToEquip;
 
       // Aplica os bônus do item
       const newStats = {
-        hp: prev.maxHp,
+        hp: prev.hp,
         maxHp: prev.maxHp,
-        mana: prev.maxMana,
+        mana: prev.mana,
         maxMana: prev.maxMana,
         atk: prev.atk,
         def: prev.def
       };
 
       // Adiciona bônus do novo item
-      if (item.bonus) {
-        Object.keys(item.bonus).forEach(stat => {
-          newStats[stat] += item.bonus[stat];
-          if (stat === 'maxHp') newStats.hp += item.bonus[stat];
-          if (stat === 'maxMana') newStats.mana += item.bonus[stat];
+      if (itemToEquip.bonus) {
+        Object.keys(itemToEquip.bonus).forEach(stat => {
+          newStats[stat] += itemToEquip.bonus[stat];
+          if (stat === 'maxHp') newStats.maxHp += itemToEquip.bonus[stat];
+          if (stat === 'maxMana') newStats.maxMana += itemToEquip.bonus[stat];
         });
+        
+        // Ajusta HP e Mana atuais se necessário
+        if (itemToEquip.bonus.maxHp) newStats.hp += itemToEquip.bonus.maxHp;
+        if (itemToEquip.bonus.maxMana) newStats.mana += itemToEquip.bonus.maxMana;
       }
 
       // Remove bônus do item anterior (se existia)
       if (prev.equipament[slot] && prev.equipament[slot].bonus) {
         Object.keys(prev.equipament[slot].bonus).forEach(stat => {
           newStats[stat] -= prev.equipament[slot].bonus[stat];
-          if (stat === 'maxHp') newStats.hp = Math.max(1, newStats.hp - prev.equipament[slot].bonus[stat]);
-          if (stat === 'maxMana') newStats.mana = Math.max(0, newStats.mana - prev.equipament[slot].bonus[stat]);
+          if (stat === 'maxHp') {
+            newStats.maxHp -= prev.equipament[slot].bonus[stat];
+            newStats.hp = Math.max(1, newStats.hp - prev.equipament[slot].bonus[stat]);
+          }
+          if (stat === 'maxMana') {
+            newStats.maxMana -= prev.equipament[slot].bonus[stat];
+            newStats.mana = Math.max(0, newStats.mana - prev.equipament[slot].bonus[stat]);
+          }
         });
       }
 
@@ -103,7 +164,73 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     });
 
     setShowItemModal(false);
-    Alert.alert("✅ Sucesso", `${item.name} equipado!`);
+    Alert.alert("✅ Sucesso", `${itemToEquip.name} equipado!`);
+  };
+
+  // Função para usar item consumível - USA O MELHOR VALOR DO GRUPO
+  const useConsumableItem = (groupedItem) => {
+    // Encontra o item com o melhor valor no grupo
+    let bestItem = groupedItem;
+    let bestValue = groupedItem.value || 0;
+    
+    // Procura pelo item com o maior valor de efeito no inventário real
+    groupedItem.ids.forEach(id => {
+      const item = player.inventory.find(invItem => invItem.id === id);
+      if (item && item.value > bestValue) {
+        bestItem = item;
+        bestValue = item.value;
+      }
+    });
+
+    const itemToUse = player.inventory.find(item => item.id === bestItem.ids[0]);
+    
+    if (!itemToUse) {
+      Alert.alert("❌ Erro", "Item não encontrado no inventário!");
+      return;
+    }
+
+    animateButton();
+
+    setPlayer(prev => {
+      const currentInventory = [...prev.inventory];
+      
+      // Remove o item usado do inventário (usa o ID correto)
+      const itemIndex = currentInventory.findIndex(invItem => invItem.id === itemToUse.id);
+      if (itemIndex !== -1) {
+        currentInventory.splice(itemIndex, 1);
+      }
+
+      // Aplica o efeito do item usando o melhor valor encontrado
+      const newStats = { ...prev };
+      const effectValue = bestItem.value || itemToUse.value;
+
+      if (itemToUse.effect === 'cura' && effectValue) {
+        const healAmount = effectValue;
+        newStats.hp = Math.min(prev.maxHp, prev.hp + healAmount);
+      } else if (itemToUse.effect === 'mana' && effectValue) {
+        const manaAmount = effectValue;
+        newStats.mana = Math.min(prev.maxMana, prev.mana + manaAmount);
+      }
+
+      return {
+        ...prev,
+        inventory: currentInventory,
+        ...newStats
+      };
+    });
+
+    setShowItemModal(false);
+    
+    let message = "";
+    const effectValue = bestItem.value || itemToUse.value;
+    
+    if (itemToUse.effect === 'cura') {
+      message = `❤️ +${effectValue} Vida restaurada!`;
+    } else if (itemToUse.effect === 'mana') {
+      message = `🔵 +${effectValue} Mana restaurada!`;
+    }
+    
+    Alert.alert("✅ Item Usado", message);
   };
 
   // Função para desequipar item
@@ -134,8 +261,14 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
       if (item.bonus) {
         Object.keys(item.bonus).forEach(stat => {
           newStats[stat] -= item.bonus[stat];
-          if (stat === 'maxHp') newStats.hp = Math.max(1, newStats.hp - item.bonus[stat]);
-          if (stat === 'maxMana') newStats.mana = Math.max(0, newStats.mana - item.bonus[stat]);
+          if (stat === 'maxHp') {
+            newStats.maxHp -= item.bonus[stat];
+            newStats.hp = Math.max(1, newStats.hp - item.bonus[stat]);
+          }
+          if (stat === 'maxMana') {
+            newStats.maxMana -= item.bonus[stat];
+            newStats.mana = Math.max(0, newStats.mana - item.bonus[stat]);
+          }
         });
       }
 
@@ -154,10 +287,10 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     if (!item || !item.bonus) return '#95a5a6';
     
     const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + val, 0);
-    if (totalBonus > 80) return '#f39c12'; // Lendário
-    if (totalBonus > 50) return '#9b59b6'; // Épico
-    if (totalBonus > 30) return '#3498db'; // Raro
-    return '#95a5a6'; // Comum
+    if (totalBonus > 80) return '#f39c12';
+    if (totalBonus > 50) return '#9b59b6';
+    if (totalBonus > 30) return '#3498db';
+    return '#95a5a6';
   };
 
   const getRarityName = (item) => {
@@ -192,7 +325,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
           <TouchableOpacity 
             style={styles.itemContent}
             onPress={() => unequipItem(slot)}
-            onLongPress={() => setSelectedItem(item)}
+            onLongPress={() => setSelectedItem({...item, quantity: 1})}
           >
             <Text style={[styles.itemName, { color: rarityColor }]}>
               {item.name}
@@ -240,62 +373,76 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     const names = {
       atk: 'ATQ',
       def: 'DEF',
-      maxHp: 'Vida',
-      maxMana: 'Mana',
+      maxHp: 'Vida Máx',
+      maxMana: 'Mana Máx',
       hp: 'Vida',
       mana: 'Mana'
     };
     return names[stat] || stat;
   };
 
-  // Renderizar item do inventário
-  const renderInventoryItem = (item, index) => {
-    const slot = Object.keys(itemCategories).find(key => 
+  // Determina se um item é equipável
+  const isEquipable = (item) => {
+    return Object.keys(itemCategories).some(key => 
       itemCategories[key].includes(item.type.toLowerCase())
     );
-    const rarityColor = getRarityColor(item);
+  };
+
+  // Renderizar item do inventário (agrupado)
+  const renderInventoryItem = (groupedItem, index) => {
+    const rarityColor = getRarityColor(groupedItem);
+    const isEquipableItem = isEquipable(groupedItem);
 
     return (
       <TouchableOpacity
         key={index}
         style={[styles.inventoryItem, { borderLeftColor: rarityColor }]}
         onPress={() => {
-          setSelectedItem(item);
+          setSelectedItem(groupedItem);
           setShowItemModal(true);
         }}
       >
         <View style={styles.inventoryHeader}>
-          <Text style={styles.itemEmoji}>{item.emoji || '📦'}</Text>
+          <Text style={styles.itemEmoji}>{groupedItem.emoji || '📦'}</Text>
           <View style={styles.inventoryInfo}>
             <Text style={[styles.itemName, { color: rarityColor }]}>
-              {item.name}
+              {groupedItem.name}
+              {groupedItem.quantity > 1 && (
+                <Text style={styles.quantityBadge}> ×{groupedItem.quantity}</Text>
+              )}
             </Text>
-            <Text style={styles.itemType}>{item.type} • {getRarityName(item)}</Text>
+            <Text style={styles.itemType}>
+              {groupedItem.type} • {getRarityName(groupedItem)}
+              {isEquipableItem ? ' • ⚔️ Equipável' : ' • 🧪 Consumível'}
+            </Text>
           </View>
         </View>
 
-        {item.bonus && (
+        {groupedItem.bonus && (
           <View style={styles.bonusesContainer}>
-            {Object.entries(item.bonus).map(([stat, value]) => (
+            {Object.entries(groupedItem.bonus).map(([stat, value]) => (
               <View key={stat} style={styles.bonusBadge}>
                 <Text style={styles.bonusText}>
-                  {getStatIcon(stat)}+{value}
+                  {getStatIcon(stat)}+{value} {getStatName(stat)}
                 </Text>
               </View>
             ))}
           </View>
         )}
 
-        {item.value && (
+        {groupedItem.value && (
           <View style={styles.effectBadge}>
             <Text style={styles.effectText}>
-              {item.effect === 'cura' ? '❤️ +' + item.value + ' Vida' : ''}
-              {item.effect === 'mana' ? '🔵 +' + item.value + ' Mana' : ''}
+              {groupedItem.effect === 'cura' ? '❤️ +' + groupedItem.value + ' Vida' : ''}
+              {groupedItem.effect === 'mana' ? '🔵 +' + groupedItem.value + ' Mana' : ''}
+              {groupedItem.effect === 'buff_atk' ? '⚔️ +' + ((groupedItem.value - 1) * 100) + '% Ataque' : ''}
             </Text>
           </View>
         )}
 
-        <Text style={styles.equipText}>Tocar para equipar</Text>
+        <Text style={isEquipableItem ? styles.equipText : styles.useText}>
+          {isEquipableItem ? 'Tocar para equipar' : 'Tocar para usar'}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -320,7 +467,12 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.title}>🎒 INVENTÁRIO</Text>
-          <Text style={styles.subtitle}>Gerenciar Equipamentos</Text>
+          <Text style={styles.subtitle}>
+            {selectedTab === 'inventario' ? 
+              `${groupedInventory.length} tipos de itens (${player.inventory.length} total)` : 
+              'Gerenciar Equipamentos'
+            }
+          </Text>
         </View>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Text style={styles.closeText}>✕</Text>
@@ -349,7 +501,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
               styles.tabText,
               selectedTab === 'inventario' && styles.activeTabText
             ]}>
-              INVENTÁRIO ({player.inventory.length})
+              INVENTÁRIO ({groupedInventory.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -425,9 +577,11 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
         </ScrollView>
       ) : (
         <ScrollView style={styles.content}>
-          <Text style={styles.sectionTitle}>ITENS DO INVENTÁRIO</Text>
+          <Text style={styles.sectionTitle}>
+            ITENS DO INVENTÁRIO ({player.inventory.length} itens totais)
+          </Text>
           
-          {player.inventory.length === 0 ? (
+          {groupedInventory.length === 0 ? (
             <View style={styles.emptyInventory}>
               <Text style={styles.emptyEmoji}>📦</Text>
               <Text style={styles.emptyText}>Inventário vazio!</Text>
@@ -435,7 +589,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
             </View>
           ) : (
             <View style={styles.inventoryGrid}>
-              {player.inventory.map((item, index) => renderInventoryItem(item, index))}
+              {groupedInventory.map((item, index) => renderInventoryItem(item, index))}
             </View>
           )}
         </ScrollView>
@@ -452,8 +606,14 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                   <View>
                     <Text style={[styles.modalTitle, { color: getRarityColor(selectedItem) }]}>
                       {selectedItem.name}
+                      {selectedItem.quantity > 1 && (
+                        <Text style={styles.modalQuantity}> ×{selectedItem.quantity}</Text>
+                      )}
                     </Text>
-                    <Text style={styles.modalType}>{selectedItem.type} • {getRarityName(selectedItem)}</Text>
+                    <Text style={styles.modalType}>
+                      {selectedItem.type} • {getRarityName(selectedItem)}
+                      {isEquipable(selectedItem) ? ' • ⚔️ Equipável' : ' • 🧪 Consumível'}
+                    </Text>
                   </View>
                 </View>
 
@@ -475,17 +635,27 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                     <Text style={styles.effectText}>
                       {selectedItem.effect === 'cura' ? 'Restaura ' + selectedItem.value + ' de Vida' : ''}
                       {selectedItem.effect === 'mana' ? 'Restaura ' + selectedItem.value + ' de Mana' : ''}
+                      {selectedItem.effect === 'buff_atk' ? 'Aumenta ataque em ' + ((selectedItem.value - 1) * 100) + '% por 3 turnos' : ''}
                     </Text>
                   </View>
                 )}
 
                 <View style={styles.modalButtons}>
-                  <TouchableOpacity 
-                    style={styles.equipButton}
-                    onPress={() => equipItem(selectedItem)}
-                  >
-                    <Text style={styles.buttonText}>✅ EQUIPAR</Text>
-                  </TouchableOpacity>
+                  {isEquipable(selectedItem) ? (
+                    <TouchableOpacity 
+                      style={styles.equipButton}
+                      onPress={() => equipItem(selectedItem)}
+                    >
+                      <Text style={styles.buttonText}>✅ EQUIPAR</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.useButton}
+                      onPress={() => useConsumableItem(selectedItem)}
+                    >
+                      <Text style={styles.buttonText}>🧪 USAR ITEM</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity 
                     style={styles.cancelButton}
                     onPress={() => setShowItemModal(false)}
@@ -793,6 +963,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
+  quantityBadge: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
   effectBadge: {
     backgroundColor: 'rgba(255, 107, 107, 0.2)',
     paddingHorizontal: 8,
@@ -810,6 +989,13 @@ const styles = StyleSheet.create({
   },
   equipText: {
     color: '#3498db',
+    fontSize: 10,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  useText: {
+    color: '#9b59b6',
     fontSize: 10,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -876,6 +1062,11 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  modalQuantity: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   modalType: {
     color: '#95a5a6',
     fontSize: 12,
@@ -927,6 +1118,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2ecc71',
+  },
+  useButton: {
+    flex: 1,
+    backgroundColor: '#9b59b6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#8e44ad',
   },
   cancelButton: {
     flex: 1,

@@ -61,6 +61,46 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     }
   };
 
+  // Função para dropar materiais dos monstros
+  const dropMaterials = (monster) => {
+    const materialDrops = {
+      'Goblin': ['Olho de Goblin', 'Unhas de Goblin'],
+      'Orc Chefe': ['Sangue de Orc', 'Dedo de Orc'],
+      'Lobo': ['Presa de Lobo', 'Pelagem de Lobo'],
+      'Glabro': ['Orelha de Glabro', 'Pata de Glabro'],
+      'Esqueleto': ['Pó de Osso', 'Crânio'],
+      'Lich': ['Essência de Alma', 'Orbe Mágica'],
+      'Ghoul': ['Mão de Ghoul', 'Pele de Ghoul'],
+      'Conde Vampiro': ['Sangue Real', 'Presas de Vampiro'],
+      'Tritão': ['Algas Mágicas', 'Escamas de Tritão'],
+      'Leviathan': ['Pérola Divina', 'Óvulo de Leviathan'],
+      'Wyvern': ['Asas de Wyvern', 'Chifre de Wyvern'],
+      'Drake': ['Pele de Drake', 'Cauda de Drake'],
+      'Dragonete': ['Unha de Dragonete', 'Saliva de Dragonete'],
+      'Dragão': ['Escama de Dragão', 'Coração de Dragão'],
+      'Deus X-Máquina': ['Núcleo Energético', 'Mithril']
+    };
+
+    const drops = [];
+    const possibleDrops = materialDrops[monster.name] || [];
+
+    // 70% de chance de dropar pelo menos 1 material
+    if (Math.random() < 0.7 && possibleDrops.length > 0) {
+      const dropChance = monster.isBoss ? 0.8 : 0.5; // Boss tem maior chance de drop
+      const numberOfDrops = monster.isBoss ? 
+        (Math.random() < 0.3 ? 2 : 1) : 1; // Boss pode dropar 2 itens
+
+      for (let i = 0; i < numberOfDrops; i++) {
+        if (Math.random() < dropChance) {
+          const randomMaterial = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
+          drops.push(randomMaterial);
+        }
+      }
+    }
+
+    return drops;
+  };
+
   // Inicializar combate com monstros variáveis e boss
   useEffect(() => {
     if (dungeon) {
@@ -364,12 +404,24 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     const totalXp = monsters.reduce((sum, m) => sum + (Number(m.xp) || 0), 0);
     const totalGold = monsters.reduce((sum, m) => sum + (Number(m.gold) || 0), 0);
     
+    // Coletar drops de todos os monstros derrotados
+    const allDrops = [];
+    monsters.forEach(monster => {
+      const drops = dropMaterials(monster);
+      drops.forEach(drop => allDrops.push(drop));
+    });
+
     // Bônus por derrotar o boss
     const bossBonus = dungeon.difficulty * 10;
     const totalXpWithBonus = totalXp + bossBonus;
     const totalGoldWithBonus = totalGold + bossBonus;
     
     addToLog(`🎉 Vitória! +${totalXpWithBonus} XP e +${totalGoldWithBonus} de ouro!`);
+    
+    if (allDrops.length > 0) {
+      addToLog(`📦 Materiais coletados: ${allDrops.join(', ')}`);
+    }
+    
     addToLog(`⭐ Bônus de boss: +${bossBonus} XP e Ouro!`);
     
     const recompensa = {
@@ -379,22 +431,35 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
         { type: 'poção', name: 'Poção de Cura', effect: 'cura', value: 30 + dungeon.difficulty * 5 },
         { type: 'poção', name: 'Poção de Mana', effect: 'mana', value: 20 + dungeon.difficulty * 3 },
         { type: 'equipamento', name: `Tesouro do ${monsterTemplates[dungeon.rank].boss.name}`, effect: 'special', value: dungeon.difficulty }
-      ]
+      ],
+      materials: allDrops
     };
     
     ganharXp(totalXpWithBonus);
     
     addTimeout(() => {
-      setPlayer(prev => ({
-        ...prev,
-        gold: (Number(prev.gold) || 0) + totalGoldWithBonus,
-        inventory: [...prev.inventory, ...recompensa.itens]
-      }));
+      setPlayer(prev => {
+        // Adicionar materiais ao inventário de materiais
+        const newMaterials = [...(prev.materials || [])];
+        allDrops.forEach(materialName => {
+          const existingMaterial = newMaterials.find(m => m.name === materialName);
+          if (existingMaterial) {
+            existingMaterial.quantity += 1;
+          } else {
+            newMaterials.push({ name: materialName, quantity: 1 });
+          }
+        });
+
+        return {
+          ...prev,
+          gold: (Number(prev.gold) || 0) + totalGoldWithBonus,
+          inventory: [...prev.inventory, ...recompensa.itens],
+          materials: newMaterials
+        };
+      });
       onComplete(recompensa);
     }, 2000);
   };
-
-  // ... (funções useItem, flee, renderSkills, renderItems permanecem as mesmas)
 
   const useItem = (item) => {
     if (isProcessing || combatStatus !== 'ongoing') return;
