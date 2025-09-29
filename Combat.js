@@ -172,11 +172,23 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       }
     });
     
-    const playerAtk = Number(player.atk) || 10;
+    // NOVO: Cálculo baseado nos status
+    const playerAtk = Math.floor(player.forca * 1.5); // Força influencia o ataque
     const monsterDef = Number(currentMonster.def) || 2;
     
+    // Chance de acerto baseada na precisão
+    const hitChance = Math.min(0.95, (player.precisao * 0.02) + 0.7);
+    if (Math.random() > hitChance) {
+      addToLog(`❌ Errou o ataque em ${currentMonster.name}!`);
+      setIsPlayerTurn(false);
+      addTimeout(() => monsterTurn(), 1000);
+      return;
+    }
+    
     const baseDamage = Math.floor(playerAtk * attackMultiplier);
-    const critChance = 0.2;
+    
+    // Chance de crítico baseada na sorte
+    const critChance = (player.sorte * 0.01) + 0.05;
     const isCrit = Math.random() < critChance;
     const damage = isCrit ? Math.floor(baseDamage * 1.5) : baseDamage;
     
@@ -243,9 +255,10 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
   const useSkill = (skill) => {
     if (isProcessing || !isPlayerTurn || combatStatus !== 'ongoing' || !currentMonster) return;
     
-    const playerMana = Number(player.mana) || 0;
-    if (playerMana < skill.manaCost) {
-      addToLog(`❌ Mana insuficiente para ${skill.name}!`);
+    // NOVO: Usar MP em vez de mana
+    const playerMp = Number(player.mp) || 0;
+    if (playerMp < skill.manaCost) {
+      addToLog(`❌ MP insuficiente para ${skill.name}!`);
       return;
     }
 
@@ -254,14 +267,24 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     
     setPlayer(prev => ({
       ...prev,
-      mana: Math.max(0, (Number(prev.mana) || 0) - skill.manaCost)
+      mp: Math.max(0, (Number(prev.mp) || 0) - skill.manaCost)
     }));
 
     addToLog(`✨ ${skill.name} em ${currentMonster.name}! (-${skill.manaCost} MP)`);
 
     if (skill.effect === 'attack') {
-      const playerAtk = Number(player.atk) || 10;
+      // NOVO: Cálculo baseado na força
+      const playerAtk = Math.floor(player.forca * 1.5);
       const monsterDef = Number(currentMonster.def) || 2;
+      
+      // Chance de acerto baseada na precisão
+      const hitChance = Math.min(0.95, (player.precisao * 0.02) + 0.7);
+      if (Math.random() > hitChance) {
+        addToLog(`❌ ${skill.name} errou!`);
+        setIsPlayerTurn(false);
+        addTimeout(() => monsterTurn(), 1000);
+        return;
+      }
       
       const skillDamage = Math.floor(playerAtk * skill.value);
       const actualDamage = Math.max(1, skillDamage - monsterDef);
@@ -346,6 +369,15 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       return;
     }
 
+    // NOVO: Chance de esquiva baseada na velocidade
+    const dodgeChance = Math.min(0.5, player.velocidade * 0.03);
+    if (Math.random() < dodgeChance) {
+      addToLog(`🌀 Esquivou do ataque de ${currentMonster.name}!`);
+      setIsPlayerTurn(true);
+      setIsProcessing(false);
+      return;
+    }
+
     // Aplicar buffs de defesa
     let defenseMultiplier = 1;
     activeBuffs.forEach(buff => {
@@ -355,7 +387,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
     });
 
     const monsterAtk = Number(currentMonster.atk) || 8;
-    const playerDefValue = Math.floor((Number(player.def) || 5) * defenseMultiplier);
+    const playerDefValue = Math.floor((player.forca * 0.5) * defenseMultiplier); // Defesa baseada na força
     
     const defenseBonus = isDefending ? playerDefValue * 2 : playerDefValue;
     const monsterDamage = Math.max(1, monsterAtk - defenseBonus);
@@ -491,9 +523,9 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       } 
       else if (item.effect === 'mana') {
         setPlayer(prev => {
-          const currentMana = Number(prev.mana) || 0;
-          const maxMana = Number(prev.maxMana) || 50;
-          const newMana = Math.min(maxMana, currentMana + healValue);
+          const currentMp = Number(prev.mp) || 0;
+          const maxMp = Number(prev.maxMp) || 50;
+          const newMp = Math.min(maxMp, currentMp + healValue);
           
           const itemIndex = prev.inventory.findIndex(invItem => invItem === item);
           const newInventory = [...prev.inventory];
@@ -503,7 +535,7 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
 
           return {
             ...prev,
-            mana: newMana,
+            mp: newMp,
             inventory: newInventory
           };
         });
@@ -553,10 +585,10 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
         key={index}
         style={[
           styles.skillButton,
-          (Number(player.mana) || 0) < skill.manaCost && styles.disabledButton
+          (Number(player.mp) || 0) < skill.manaCost && styles.disabledButton
         ]}
         onPress={() => useSkill(skill)}
-        disabled={(Number(player.mana) || 0) < skill.manaCost}
+        disabled={(Number(player.mp) || 0) < skill.manaCost}
       >
         <Text style={styles.skillIcon}>{skill.icon}</Text>
         <Text style={styles.skillName}>{skill.name}</Text>
@@ -602,8 +634,8 @@ export default function Combat({ dungeon, player, setPlayer, ganharXp, onClose, 
       <Text style={styles.title}>⚔️ {dungeon?.title}</Text>
       
       <View style={styles.stats}>
-        <Text style={styles.statText}>HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
-        <Text style={styles.statText}>MP: {Number(player.mana) || 0}/{Number(player.maxMana) || 50}</Text>
+        <Text style={styles.statText}>❤️ HP: {Number(player.hp) || 0}/{Number(player.maxHp) || 100}</Text>
+        <Text style={styles.statText}>🔵 MP: {Number(player.mp) || 0}/{Number(player.maxMp) || 50}</Text>
         <Text style={[styles.statText, currentMonster.isBoss && styles.bossText]}>
           {currentMonster.emoji} {currentMonster.name} {currentMonster.isBoss ? '(BOSS)' : ''}
         </Text>

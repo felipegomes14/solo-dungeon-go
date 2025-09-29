@@ -17,6 +17,8 @@ import QuestDiaria from "./QuestDiaria";
 import Menu from "./Menu";
 import ErrorBoundary from './ErrorBoundary';
 import Alquimia from "./Alquimia";
+import LevelUpModal from "./LevelUpModal";
+import StatusScreen from "./StatusScreen"; // Novo componente de status
 
 import DungeonMarkers from "./DungeonMarkers";
 import RegenIndicator from "./RegenIndicator";
@@ -46,7 +48,10 @@ export default function App() {
     entrarEmCombate,
     sairDoCombate,
     isInCombat,
-    isLoading: playerLoading
+    isLoading: playerLoading,
+    showLevelUpModal,
+    setShowLevelUpModal,
+    distributeStatPoint
   } = usePlayer();
 
   const {
@@ -72,9 +77,10 @@ export default function App() {
     gerarDungeons
   } = useDungeons();
 
-  // Estados para controlar a alquimia e o menu
+  // Estados para controlar a alquimia, menu e status
   const [showAlquimia, setShowAlquimia] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showStatus, setShowStatus] = useState(false); // Novo estado para status
 
   const [appLoading, setAppLoading] = useState(true);
 
@@ -95,6 +101,7 @@ export default function App() {
       setShowQuest(false);
       setShowAlquimia(false);
       setIsMenuOpen(false);
+      setShowStatus(false); // Resetar status também
     };
   }, []);
 
@@ -136,6 +143,7 @@ export default function App() {
     setShowQuest(false);
     setShowAlquimia(false);
     setIsMenuOpen(false);
+    setShowStatus(false); // Fechar status também
     setCurrentDungeon(null);
     setCurrentGame(null);
     setShowDungeonConfirm(false);
@@ -201,8 +209,26 @@ export default function App() {
         onShowClassSelection={() => abrirModalComMenu(setShowClassSelection)}
         onShowQuest={() => abrirModalComMenu(setShowQuest)}
         onShowAlquimia={() => abrirModalComMenu(setShowAlquimia)}
+        onShowStatus={() => abrirModalComMenu(setShowStatus)} // Nova prop para status
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
+      />
+
+      {/* Modal de Status - NOVO */}
+      <Modal visible={showStatus} animationType="slide">
+        <StatusScreen
+          player={player}
+          level={level}
+          xp={xp}
+          onClose={() => setShowStatus(false)}
+        />
+      </Modal>
+
+      <LevelUpModal
+        visible={showLevelUpModal}
+        player={player}
+        onDistributePoint={distributeStatPoint}
+        onClose={() => setShowLevelUpModal(false)}
       />
 
       <Modal visible={showClassSelection} animationType="slide">
@@ -212,12 +238,14 @@ export default function App() {
             setShowClassSelection(false);
             setPlayer(prev => ({
               ...prev,
-              atk: (prev.atk || 10) + cls.bonusAtk,
-              def: (prev.def || 5) + cls.bonusDef,
-              maxHp: (prev.maxHp || 100) + cls.bonusHp,
-              hp: (prev.maxHp || 100) + cls.bonusHp,
-              maxMana: (prev.maxMana || 50) + (cls.bonusMana || 0),
-              mana: (prev.maxMana || 50) + (cls.bonusMana || 0)
+              forca: prev.forca + cls.bonusForca,
+              velocidade: prev.velocidade + cls.bonusVelocidade,
+              precisao: prev.precisao + cls.bonusPrecisao,
+              sorte: prev.sorte + cls.bonusSorte,
+              maxHp: prev.maxHp + cls.bonusHp,
+              hp: prev.maxHp + cls.bonusHp,
+              maxMp: prev.maxMp + cls.bonusMp,
+              mp: prev.maxMp + cls.bonusMp
             }));
             Alert.alert("🏆 Classe Escolhida!", `Você agora é um ${cls.name}!`);
           }}
