@@ -18,12 +18,19 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     bracelete: ['bracelete', 'braçadeira', 'pulseira']
   };
 
-  // Função para agrupar itens iguais no inventário - SIMPLIFICADA
+  // Função para obter valor seguro (evita NaN)
+  const getSafeValue = (value, defaultValue = 0) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return defaultValue;
+    }
+    return Number(value);
+  };
+
+  // Função para agrupar itens iguais no inventário
   const getGroupedInventory = () => {
     const groupedItems = {};
     
     player.inventory.forEach(item => {
-      // Chave simplificada: agrupa apenas por nome e tipo (ignora origem, ID, etc)
       const key = `${item.name}-${item.type}`.toLowerCase();
       
       if (!groupedItems[key]) {
@@ -48,8 +55,8 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
           } else {
             Object.keys(item.bonus).forEach(stat => {
               groupedItems[key].bonus[stat] = Math.max(
-                groupedItems[key].bonus[stat] || 0,
-                item.bonus[stat]
+                getSafeValue(groupedItems[key].bonus[stat]),
+                getSafeValue(item.bonus[stat])
               );
             });
           }
@@ -79,7 +86,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     ]).start();
   };
 
-  // Função para equipar item
+  // Função para equipar item CORRIGIDA
   const equipItem = (groupedItem) => {
     const itemToEquip = player.inventory.find(item => item.id === groupedItem.ids[0]);
     
@@ -100,7 +107,8 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     animateButton();
 
     setPlayer(prev => {
-      const currentEquipament = { ...prev.equipament };
+      // Garantir que equipament existe
+      const currentEquipament = { ...(prev.equipament || {}) };
       const currentInventory = [...prev.inventory];
       
       // Remove o item do inventário
@@ -109,57 +117,59 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
         currentInventory.splice(itemIndex, 1);
       }
 
+      // Item atual equipado no slot
+      const currentEquippedItem = currentEquipament[slot];
+      
       // Se já tinha item equipado, volta pro inventário
-      if (currentEquipament[slot]) {
-        currentInventory.push(currentEquipament[slot]);
+      if (currentEquippedItem) {
+        currentInventory.push(currentEquippedItem);
+        
+        // Remove bônus do item anterior
+        if (currentEquippedItem.bonus) {
+          Object.keys(currentEquippedItem.bonus).forEach(stat => {
+            const bonusValue = getSafeValue(currentEquippedItem.bonus[stat]);
+            // Converte atributos antigos para novos se necessário
+            if (stat === 'atk') {
+              prev.forca = getSafeValue(prev.forca, 10) - bonusValue;
+            } else if (stat === 'def') {
+              prev.defesa = getSafeValue(prev.defesa, 10) - bonusValue;
+            } else {
+              prev[stat] = getSafeValue(prev[stat]) - bonusValue;
+            }
+          });
+        }
       }
 
       // Equipa o novo item
       currentEquipament[slot] = itemToEquip;
 
-      // Aplica os bônus do item
-      const newStats = {
-        hp: prev.hp,
-        maxHp: prev.maxHp,
-        mana: prev.mana,
-        maxMana: prev.maxMana,
-        atk: prev.atk,
-        def: prev.def
-      };
-
-      // Adiciona bônus do novo item
+      // Aplica os bônus do novo item
+      const newPlayer = { ...prev };
+      
       if (itemToEquip.bonus) {
         Object.keys(itemToEquip.bonus).forEach(stat => {
-          newStats[stat] += itemToEquip.bonus[stat];
-          if (stat === 'maxHp') newStats.maxHp += itemToEquip.bonus[stat];
-          if (stat === 'maxMana') newStats.maxMana += itemToEquip.bonus[stat];
-        });
-        
-        // Ajusta HP e Mana atuais se necessário
-        if (itemToEquip.bonus.maxHp) newStats.hp += itemToEquip.bonus.maxHp;
-        if (itemToEquip.bonus.maxMana) newStats.mana += itemToEquip.bonus.maxMana;
-      }
-
-      // Remove bônus do item anterior (se existia)
-      if (prev.equipament[slot] && prev.equipament[slot].bonus) {
-        Object.keys(prev.equipament[slot].bonus).forEach(stat => {
-          newStats[stat] -= prev.equipament[slot].bonus[stat];
-          if (stat === 'maxHp') {
-            newStats.maxHp -= prev.equipament[slot].bonus[stat];
-            newStats.hp = Math.max(1, newStats.hp - prev.equipament[slot].bonus[stat]);
-          }
-          if (stat === 'maxMana') {
-            newStats.maxMana -= prev.equipament[slot].bonus[stat];
-            newStats.mana = Math.max(0, newStats.mana - prev.equipament[slot].bonus[stat]);
+          const bonusValue = getSafeValue(itemToEquip.bonus[stat]);
+          // Converte atributos antigos para novos se necessário
+          if (stat === 'atk') {
+            newPlayer.forca = getSafeValue(newPlayer.forca, 10) + bonusValue;
+          } else if (stat === 'def') {
+            newPlayer.defesa = getSafeValue(newPlayer.defesa, 10) + bonusValue;
+          } else if (stat === 'maxHp') {
+            newPlayer.maxHp = getSafeValue(newPlayer.maxHp, 100) + bonusValue;
+            newPlayer.hp = getSafeValue(newPlayer.hp, 100) + bonusValue;
+          } else if (stat === 'maxMana') {
+            newPlayer.maxMp = getSafeValue(newPlayer.maxMp, 50) + bonusValue;
+            newPlayer.mp = getSafeValue(newPlayer.mp, 50) + bonusValue;
+          } else {
+            newPlayer[stat] = getSafeValue(newPlayer[stat]) + bonusValue;
           }
         });
       }
 
       return {
-        ...prev,
+        ...newPlayer,
         equipament: currentEquipament,
-        inventory: currentInventory,
-        ...newStats
+        inventory: currentInventory
       };
     });
 
@@ -167,18 +177,16 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     Alert.alert("✅ Sucesso", `${itemToEquip.name} equipado!`);
   };
 
-  // Função para usar item consumível - USA O MELHOR VALOR DO GRUPO
+  // Função para usar item consumível
   const useConsumableItem = (groupedItem) => {
-    // Encontra o item com o melhor valor no grupo
     let bestItem = groupedItem;
-    let bestValue = groupedItem.value || 0;
+    let bestValue = getSafeValue(groupedItem.value);
     
-    // Procura pelo item com o maior valor de efeito no inventário real
     groupedItem.ids.forEach(id => {
       const item = player.inventory.find(invItem => invItem.id === id);
-      if (item && item.value > bestValue) {
+      if (item && getSafeValue(item.value) > bestValue) {
         bestItem = item;
-        bestValue = item.value;
+        bestValue = getSafeValue(item.value);
       }
     });
 
@@ -194,35 +202,38 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     setPlayer(prev => {
       const currentInventory = [...prev.inventory];
       
-      // Remove o item usado do inventário (usa o ID correto)
+      // Remove o item usado do inventário
       const itemIndex = currentInventory.findIndex(invItem => invItem.id === itemToUse.id);
       if (itemIndex !== -1) {
         currentInventory.splice(itemIndex, 1);
       }
 
-      // Aplica o efeito do item usando o melhor valor encontrado
-      const newStats = { ...prev };
-      const effectValue = bestItem.value || itemToUse.value;
+      // Aplica o efeito do item
+      const newPlayer = { ...prev };
+      const effectValue = getSafeValue(bestItem.value);
 
       if (itemToUse.effect === 'cura' && effectValue) {
-        const healAmount = effectValue;
-        newStats.hp = Math.min(prev.maxHp, prev.hp + healAmount);
+        newPlayer.hp = Math.min(
+          getSafeValue(newPlayer.maxHp, 100), 
+          getSafeValue(newPlayer.hp, 100) + effectValue
+        );
       } else if (itemToUse.effect === 'mana' && effectValue) {
-        const manaAmount = effectValue;
-        newStats.mana = Math.min(prev.maxMana, prev.mana + manaAmount);
+        newPlayer.mp = Math.min(
+          getSafeValue(newPlayer.maxMp, 50), 
+          getSafeValue(newPlayer.mp, 50) + effectValue
+        );
       }
 
       return {
-        ...prev,
-        inventory: currentInventory,
-        ...newStats
+        ...newPlayer,
+        inventory: currentInventory
       };
     });
 
     setShowItemModal(false);
     
     let message = "";
-    const effectValue = bestItem.value || itemToUse.value;
+    const effectValue = getSafeValue(bestItem.value);
     
     if (itemToUse.effect === 'cura') {
       message = `❤️ +${effectValue} Vida restaurada!`;
@@ -233,9 +244,9 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     Alert.alert("✅ Item Usado", message);
   };
 
-  // Função para desequipar item
+  // Função para desequipar item CORRIGIDA
   const unequipItem = (slot) => {
-    if (!player.equipament[slot]) return;
+    if (!player.equipament || !player.equipament[slot]) return;
 
     animateButton();
 
@@ -249,34 +260,32 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
       delete currentEquipament[slot];
 
       // Remove os bônus do item
-      const newStats = {
-        hp: prev.hp,
-        maxHp: prev.maxHp,
-        mana: prev.mana,
-        maxMana: prev.maxMana,
-        atk: prev.atk,
-        def: prev.def
-      };
-
+      const newPlayer = { ...prev };
+      
       if (item.bonus) {
         Object.keys(item.bonus).forEach(stat => {
-          newStats[stat] -= item.bonus[stat];
-          if (stat === 'maxHp') {
-            newStats.maxHp -= item.bonus[stat];
-            newStats.hp = Math.max(1, newStats.hp - item.bonus[stat]);
-          }
-          if (stat === 'maxMana') {
-            newStats.maxMana -= item.bonus[stat];
-            newStats.mana = Math.max(0, newStats.mana - item.bonus[stat]);
+          const bonusValue = getSafeValue(item.bonus[stat]);
+          // Converte atributos antigos para novos se necessário
+          if (stat === 'atk') {
+            newPlayer.forca = Math.max(10, getSafeValue(newPlayer.forca, 10) - bonusValue);
+          } else if (stat === 'def') {
+            newPlayer.defesa = Math.max(10, getSafeValue(newPlayer.defesa, 10) - bonusValue);
+          } else if (stat === 'maxHp') {
+            newPlayer.maxHp = Math.max(100, getSafeValue(newPlayer.maxHp, 100) - bonusValue);
+            newPlayer.hp = Math.max(1, getSafeValue(newPlayer.hp, 100) - bonusValue);
+          } else if (stat === 'maxMana') {
+            newPlayer.maxMp = Math.max(50, getSafeValue(newPlayer.maxMp, 50) - bonusValue);
+            newPlayer.mp = Math.max(0, getSafeValue(newPlayer.mp, 50) - bonusValue);
+          } else {
+            newPlayer[stat] = getSafeValue(newPlayer[stat]) - bonusValue;
           }
         });
       }
 
       return {
-        ...prev,
+        ...newPlayer,
         equipament: currentEquipament,
-        inventory: currentInventory,
-        ...newStats
+        inventory: currentInventory
       };
     });
 
@@ -286,7 +295,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
   const getRarityColor = (item) => {
     if (!item || !item.bonus) return '#95a5a6';
     
-    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + val, 0);
+    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + getSafeValue(val), 0);
     if (totalBonus > 80) return '#f39c12';
     if (totalBonus > 50) return '#9b59b6';
     if (totalBonus > 30) return '#3498db';
@@ -296,16 +305,45 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
   const getRarityName = (item) => {
     if (!item || !item.bonus) return 'Comum';
     
-    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + val, 0);
+    const totalBonus = Object.values(item.bonus).reduce((sum, val) => sum + getSafeValue(val), 0);
     if (totalBonus > 80) return 'Lendário';
     if (totalBonus > 50) return 'Épico';
     if (totalBonus > 30) return 'Raro';
     return 'Comum';
   };
 
+  // Calcular bônus totais CORRIGIDO
+  const totalBonus = () => {
+    let bonus = { forca: 0, defesa: 0, maxHp: 0, maxMp: 0 };
+    
+    if (player.equipament) {
+      Object.values(player.equipament).forEach(item => {
+        if (item && item.bonus) {
+          Object.entries(item.bonus).forEach(([stat, value]) => {
+            // Converte atributos antigos para novos
+            if (stat === 'atk') {
+              bonus.forca += getSafeValue(value);
+            } else if (stat === 'def') {
+              bonus.defesa += getSafeValue(value);
+            } else if (stat === 'maxHp') {
+              bonus.maxHp += getSafeValue(value);
+            } else if (stat === 'maxMana') {
+              bonus.maxMp += getSafeValue(value);
+            } else {
+              bonus[stat] = getSafeValue(bonus[stat]) + getSafeValue(value);
+            }
+          });
+        }
+      });
+    }
+    return bonus;
+  };
+
+  const equippedBonus = totalBonus();
+
   // Renderizar slot de equipamento
   const renderEquipamentSlot = (slot, label, emoji) => {
-    const item = player.equipament[slot];
+    const item = player.equipament?.[slot];
     const rarityColor = item ? getRarityColor(item) : '#4B0082';
     
     return (
@@ -337,7 +375,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                 {Object.entries(item.bonus).map(([stat, value]) => (
                   <View key={stat} style={styles.bonusBadge}>
                     <Text style={styles.bonusText}>
-                      {getStatIcon(stat)}+{value}
+                      {getStatIcon(stat)}+{getSafeValue(value)}
                     </Text>
                   </View>
                 ))}
@@ -361,10 +399,15 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     const icons = {
       atk: '⚔️',
       def: '🛡️',
+      forca: '💪',
+      defesa: '🛡️',
       maxHp: '❤️',
-      maxMana: '🔵',
+      maxMp: '🔵',
       hp: '❤️',
-      mana: '🔵'
+      mp: '🔵',
+      velocidade: '⚡',
+      precisao: '🎯',
+      sorte: '🍀'
     };
     return icons[stat] || '✨';
   };
@@ -373,10 +416,15 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     const names = {
       atk: 'ATQ',
       def: 'DEF',
+      forca: 'FOR',
+      defesa: 'DEF',
       maxHp: 'Vida Máx',
-      maxMana: 'Mana Máx',
+      maxMp: 'Mana Máx',
       hp: 'Vida',
-      mana: 'Mana'
+      mp: 'Mana',
+      velocidade: 'VEL',
+      precisao: 'PRE',
+      sorte: 'SOR'
     };
     return names[stat] || stat;
   };
@@ -423,7 +471,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
             {Object.entries(groupedItem.bonus).map(([stat, value]) => (
               <View key={stat} style={styles.bonusBadge}>
                 <Text style={styles.bonusText}>
-                  {getStatIcon(stat)}+{value} {getStatName(stat)}
+                  {getStatIcon(stat)}+{getSafeValue(value)} {getStatName(stat)}
                 </Text>
               </View>
             ))}
@@ -433,9 +481,8 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
         {groupedItem.value && (
           <View style={styles.effectBadge}>
             <Text style={styles.effectText}>
-              {groupedItem.effect === 'cura' ? '❤️ +' + groupedItem.value + ' Vida' : ''}
-              {groupedItem.effect === 'mana' ? '🔵 +' + groupedItem.value + ' Mana' : ''}
-              {groupedItem.effect === 'buff_atk' ? '⚔️ +' + ((groupedItem.value - 1) * 100) + '% Ataque' : ''}
+              {groupedItem.effect === 'cura' ? '❤️ +' + getSafeValue(groupedItem.value) + ' Vida' : ''}
+              {groupedItem.effect === 'mana' ? '🔵 +' + getSafeValue(groupedItem.value) + ' Mana' : ''}
             </Text>
           </View>
         )}
@@ -447,19 +494,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     );
   };
 
-  const totalBonus = () => {
-    let bonus = { atk: 0, def: 0, maxHp: 0, maxMana: 0 };
-    Object.values(player.equipament).forEach(item => {
-      if (item && item.bonus) {
-        Object.entries(item.bonus).forEach(([stat, value]) => {
-          bonus[stat] += value;
-        });
-      }
-    });
-    return bonus;
-  };
-
-  const equippedBonus = totalBonus();
+  // ... (o restante do código de renderização permanece igual)
 
   return (
     <View style={styles.container}>
@@ -526,32 +561,34 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
               {renderEquipamentSlot('amuleto', 'Amuleto', '🔮')}
               {renderEquipamentSlot('bracelete', 'Bracelete', '📿')}
               
-              {/* Status do Jogador */}
+              {/* Status do Jogador CORRIGIDO */}
               <View style={styles.playerStats}>
                 <Text style={styles.statsTitle}>📊 ATRIBUTOS DO PERSONAGEM</Text>
                 
                 <View style={styles.statRow}>
-                  <Text style={styles.statIcon}>⚔️</Text>
-                  <Text style={styles.statLabel}>Ataque:</Text>
-                  <Text style={styles.statValue}>{player.atk}</Text>
-                  {equippedBonus.atk > 0 && (
-                    <Text style={styles.statBonus}>+{equippedBonus.atk}</Text>
+                  <Text style={styles.statIcon}>💪</Text>
+                  <Text style={styles.statLabel}>Força:</Text>
+                  <Text style={styles.statValue}>{getSafeValue(player.forca, 10)}</Text>
+                  {equippedBonus.forca > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.forca}</Text>
                   )}
                 </View>
                 
                 <View style={styles.statRow}>
                   <Text style={styles.statIcon}>🛡️</Text>
                   <Text style={styles.statLabel}>Defesa:</Text>
-                  <Text style={styles.statValue}>{player.def}</Text>
-                  {equippedBonus.def > 0 && (
-                    <Text style={styles.statBonus}>+{equippedBonus.def}</Text>
+                  <Text style={styles.statValue}>{getSafeValue(player.defesa, 10)}</Text>
+                  {equippedBonus.defesa > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.defesa}</Text>
                   )}
                 </View>
                 
                 <View style={styles.statRow}>
                   <Text style={styles.statIcon}>❤️</Text>
                   <Text style={styles.statLabel}>Vida:</Text>
-                  <Text style={styles.statValue}>{player.hp}/{player.maxHp}</Text>
+                  <Text style={styles.statValue}>
+                    {getSafeValue(player.hp, 100)}/{getSafeValue(player.maxHp, 100)}
+                  </Text>
                   {equippedBonus.maxHp > 0 && (
                     <Text style={styles.statBonus}>+{equippedBonus.maxHp}</Text>
                   )}
@@ -560,10 +597,30 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                 <View style={styles.statRow}>
                   <Text style={styles.statIcon}>🔵</Text>
                   <Text style={styles.statLabel}>Mana:</Text>
-                  <Text style={styles.statValue}>{player.mana}/{player.maxMana}</Text>
-                  {equippedBonus.maxMana > 0 && (
-                    <Text style={styles.statBonus}>+{equippedBonus.maxMana}</Text>
+                  <Text style={styles.statValue}>
+                    {getSafeValue(player.mp, 50)}/{getSafeValue(player.maxMp, 50)}
+                  </Text>
+                  {equippedBonus.maxMp > 0 && (
+                    <Text style={styles.statBonus}>+{equippedBonus.maxMp}</Text>
                   )}
+                </View>
+
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>⚡</Text>
+                  <Text style={styles.statLabel}>Velocidade:</Text>
+                  <Text style={styles.statValue}>{getSafeValue(player.velocidade, 10)}</Text>
+                </View>
+
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>🎯</Text>
+                  <Text style={styles.statLabel}>Precisão:</Text>
+                  <Text style={styles.statValue}>{getSafeValue(player.precisao, 10)}</Text>
+                </View>
+
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>🍀</Text>
+                  <Text style={styles.statLabel}>Sorte:</Text>
+                  <Text style={styles.statValue}>{getSafeValue(player.sorte, 10)}</Text>
                 </View>
                 
                 <View style={styles.totalBonus}>
@@ -623,7 +680,7 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                     {Object.entries(selectedItem.bonus).map(([stat, value]) => (
                       <View key={stat} style={styles.modalBonusRow}>
                         <Text style={styles.modalBonusIcon}>{getStatIcon(stat)}</Text>
-                        <Text style={styles.modalBonusText}>+{value} {getStatName(stat)}</Text>
+                        <Text style={styles.modalBonusText}>+{getSafeValue(value)} {getStatName(stat)}</Text>
                       </View>
                     ))}
                   </View>
@@ -633,9 +690,8 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
                   <View style={styles.modalEffect}>
                     <Text style={styles.effectTitle}>✨ EFEITO:</Text>
                     <Text style={styles.effectText}>
-                      {selectedItem.effect === 'cura' ? 'Restaura ' + selectedItem.value + ' de Vida' : ''}
-                      {selectedItem.effect === 'mana' ? 'Restaura ' + selectedItem.value + ' de Mana' : ''}
-                      {selectedItem.effect === 'buff_atk' ? 'Aumenta ataque em ' + ((selectedItem.value - 1) * 100) + '% por 3 turnos' : ''}
+                      {selectedItem.effect === 'cura' ? 'Restaura ' + getSafeValue(selectedItem.value) + ' de Vida' : ''}
+                      {selectedItem.effect === 'mana' ? 'Restaura ' + getSafeValue(selectedItem.value) + ' de Mana' : ''}
                     </Text>
                   </View>
                 )}
@@ -671,6 +727,8 @@ const EquipamentScreen = ({ player, setPlayer, onClose }) => {
     </View>
   );
 };
+
+// ... (os estilos permanecem os mesmos)
 
 const styles = StyleSheet.create({
   container: { 

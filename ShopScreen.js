@@ -54,7 +54,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 201, 
         name: "Lâmina do Dragão", 
         type: "espada", 
-        bonus: { atk: 45, def: 10 }, 
+        bonus: { forca: 45, defesa: 10 }, 
         price: 2500, 
         emoji: "⚔️",
         rarity: "legendary"
@@ -63,7 +63,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 202, 
         name: "Machado de Guerra", 
         type: "arma", 
-        bonus: { atk: 35, def: 15 }, 
+        bonus: { forca: 35, defesa: 15 }, 
         price: 1800, 
         emoji: "🪓",
         rarity: "epic"
@@ -72,7 +72,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 203, 
         name: "Arco Lunar", 
         type: "arco", 
-        bonus: { atk: 40, def: 5 }, 
+        bonus: { forca: 40, precisao: 10 }, 
         price: 2200, 
         emoji: "🏹",
         rarity: "rare"
@@ -81,7 +81,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 204, 
         name: "Adaga Sombria", 
         type: "espada", 
-        bonus: { atk: 28, def: 8 }, 
+        bonus: { forca: 28, velocidade: 8 }, 
         price: 1200, 
         emoji: "🗡️",
         rarity: "common"
@@ -92,7 +92,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 301, 
         name: "Armadura Celestial", 
         type: "peitoral", 
-        bonus: { atk: 15, def: 45, maxHp: 50 }, 
+        bonus: { defesa: 45, maxHp: 50, sorte: 5 }, 
         price: 3000, 
         emoji: "✨",
         rarity: "legendary"
@@ -101,7 +101,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 302, 
         name: "Peitoral de Mitril", 
         type: "peitoral", 
-        bonus: { atk: 10, def: 35, maxHp: 30 }, 
+        bonus: { defesa: 35, maxHp: 30 }, 
         price: 1800, 
         emoji: "🥋",
         rarity: "epic"
@@ -110,7 +110,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 303, 
         name: "Couraça de Dragão", 
         type: "peitoral", 
-        bonus: { atk: 12, def: 40, maxHp: 40 }, 
+        bonus: { defesa: 40, maxHp: 40 }, 
         price: 2200, 
         emoji: "🐉",
         rarity: "rare"
@@ -121,7 +121,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 401, 
         name: "Amuleto do Fênix", 
         type: "amuleto", 
-        bonus: { atk: 20, def: 15, maxMana: 30 }, 
+        bonus: { forca: 20, defesa: 15, maxMp: 30 }, 
         price: 1500, 
         emoji: "🔥",
         rarity: "epic"
@@ -130,7 +130,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 402, 
         name: "Bracelete Estelar", 
         type: "bracelete", 
-        bonus: { atk: 12, def: 18, maxMana: 25 }, 
+        bonus: { forca: 12, defesa: 18, maxMp: 25 }, 
         price: 1200, 
         emoji: "⭐",
         rarity: "rare"
@@ -139,7 +139,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 403, 
         name: "Anel Ancestral", 
         type: "amuleto", 
-        bonus: { atk: 15, def: 12, maxHp: 20 }, 
+        bonus: { forca: 15, defesa: 12, maxHp: 20 }, 
         price: 900, 
         emoji: "💍",
         rarity: "common"
@@ -150,7 +150,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 501, 
         name: "Elmo do Guardião", 
         type: "capacete", 
-        bonus: { def: 25, maxHp: 30 }, 
+        bonus: { defesa: 25, maxHp: 30 }, 
         price: 800, 
         emoji: "⛑️",
         rarity: "rare"
@@ -159,7 +159,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 502, 
         name: "Coroa Real", 
         type: "capacete", 
-        bonus: { def: 15, maxHp: 20, maxMana: 25 }, 
+        bonus: { defesa: 15, maxHp: 20, maxMp: 25 }, 
         price: 1200, 
         emoji: "👑",
         rarity: "epic"
@@ -170,7 +170,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 601, 
         name: "Botas da Agilidade", 
         type: "botas", 
-        bonus: { def: 20, maxHp: 15 }, 
+        bonus: { defesa: 20, velocidade: 15 }, 
         price: 600, 
         emoji: "👟",
         rarity: "rare"
@@ -179,7 +179,7 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         id: 602, 
         name: "Grevas de Aço", 
         type: "botas", 
-        bonus: { def: 25, maxHp: 20 }, 
+        bonus: { defesa: 25, maxHp: 20 }, 
         price: 800, 
         emoji: "🥾",
         rarity: "epic"
@@ -239,6 +239,37 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
       legendary: 'Lendário'
     };
     return names[rarity] || 'Comum';
+  };
+
+  // Helper functions
+  const getStatIcon = (stat) => {
+    const icons = {
+      forca: '💪',
+      defesa: '🛡️',
+      maxHp: '❤️',
+      maxMp: '🔵',
+      hp: '❤️',
+      mp: '🔵',
+      velocidade: '⚡',
+      precisao: '🎯',
+      sorte: '🍀'
+    };
+    return icons[stat] || '✨';
+  };
+
+  const getStatName = (stat) => {
+    const names = {
+      forca: 'FOR',
+      defesa: 'DEF',
+      maxHp: 'Vida Máx',
+      maxMp: 'Mana Máx',
+      hp: 'Vida',
+      mp: 'Mana',
+      velocidade: 'VEL',
+      precisao: 'PRE',
+      sorte: 'SOR'
+    };
+    return names[stat] || stat;
   };
 
   const renderCategoryItems = () => {
@@ -301,19 +332,6 @@ const ShopScreen = ({ player, setPlayer, onClose }) => {
         </View>
       </Animated.View>
     ));
-  };
-
-  // Helper functions
-  const getStatIcon = (stat) => {
-    const icons = {
-      atk: '⚔️',
-      def: '🛡️',
-      maxHp: '❤️',
-      maxMana: '🔵',
-      hp: '❤️',
-      mana: '🔵'
-    };
-    return icons[stat] || '✨';
   };
 
   return (
@@ -387,6 +405,8 @@ const getCategoryName = (category) => {
   };
   return names[category] || category;
 };
+
+// ... (os estilos permanecem os mesmos)
 
 const styles = StyleSheet.create({
   container: {

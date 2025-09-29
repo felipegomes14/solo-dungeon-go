@@ -391,15 +391,19 @@ const usePlayer = () => {
   };
 
   const [player, setPlayer] = useState({
+    // NOVOS STATUS
     hp: 100,
     maxHp: 100,
-    atk: 10,
-    def: 5,
+    mp: 50,
+    maxMp: 50,
+    forca: 10,
+    velocidade: 10,
+    precisao: 10,
+    sorte: 10,
+    
     level: 1,
     xp: 0,
     gold: 1000,
-    mana: 50,
-    maxMana: 50,
     inventory: [
       {
         id: 1,
@@ -419,7 +423,8 @@ const usePlayer = () => {
     equipament: {},
     skills: [],
     materials: [],
-    playerClass: null
+    playerClass: null,
+    availablePoints: 0 // Pontos para distribuir ao subir de nível
   });
 
   const [xp, setXp] = useState(0);
@@ -428,6 +433,8 @@ const usePlayer = () => {
   const [showClassSelection, setShowClassSelection] = useState(false);
   const [showInventory, setShowInventory] = useState(false);
   const [isInCombat, setIsInCombat] = useState(false);
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Regeneração de HP e MP apenas fora do combate
   useEffect(() => {
@@ -437,18 +444,18 @@ const usePlayer = () => {
       regenInterval = setInterval(() => {
         setPlayer(prev => {
           const shouldRegenHp = prev.hp < prev.maxHp;
-          const shouldRegenMana = prev.mana < prev.maxMana;
+          const shouldRegenMp = prev.mp < prev.maxMp;
           
-          if (shouldRegenHp || shouldRegenMana) {
+          if (shouldRegenHp || shouldRegenMp) {
             return {
               ...prev,
-              hp: shouldRegenHp ? Math.min(prev.maxHp, prev.hp + 5) : prev.hp,
-              mana: shouldRegenMana ? Math.min(prev.maxMana, prev.mana + 3) : prev.mana
+              hp: shouldRegenHp ? Math.min(prev.maxHp, prev.hp + Math.floor(prev.maxHp * 0.02)) : prev.hp,
+              mp: shouldRegenMp ? Math.min(prev.maxMp, prev.mp + Math.floor(prev.maxMp * 0.03)) : prev.mp
             };
           }
           return prev;
         });
-      }, 1000);
+      }, 3000); // Aumentei o intervalo para 3 segundos
     }
 
     return () => {
@@ -466,6 +473,28 @@ const usePlayer = () => {
     setIsInCombat(false);
   };
 
+  // Função para distribuir pontos de status
+  const distributeStatPoint = (stat) => {
+    setPlayer(prev => {
+      if (prev.availablePoints <= 0) return prev;
+      
+      const statIncreases = {
+        hp: () => ({ maxHp: prev.maxHp + 10, hp: prev.hp + 10 }),
+        mp: () => ({ maxMp: prev.maxMp + 5, mp: prev.mp + 5 }),
+        forca: () => ({ forca: prev.forca + 1 }),
+        velocidade: () => ({ velocidade: prev.velocidade + 1 }),
+        precisao: () => ({ precisao: prev.precisao + 1 }),
+        sorte: () => ({ sorte: prev.sorte + 1 })
+      };
+
+      return {
+        ...prev,
+        ...statIncreases[stat](),
+        availablePoints: prev.availablePoints - 1
+      };
+    });
+  };
+
   const ganharXp = (quantidade) => {
     let novoXp = xp + quantidade;
     let novoLevel = level;
@@ -476,14 +505,10 @@ const usePlayer = () => {
       const xpRestante = novoXp - (level * 100);
       novoXp = xpRestante;
 
+      // Ao subir de nível, ganha 1 ponto para distribuir
       newPlayer = {
         ...newPlayer,
-        maxHp: newPlayer.maxHp + 20,
-        hp: newPlayer.maxHp + 20,
-        atk: newPlayer.atk + 5,
-        def: newPlayer.def + 2,
-        maxMana: newPlayer.maxMana + 10,
-        mana: newPlayer.maxMana + 10,
+        availablePoints: (newPlayer.availablePoints || 0) + 1,
         level: novoLevel
       };
 
@@ -500,7 +525,8 @@ const usePlayer = () => {
         }
       }
 
-      Alert.alert("🎉 Level Up!", `Você alcançou o nível ${novoLevel}!`);
+      setShowLevelUpModal(true);
+      Alert.alert("🎉 Level Up!", `Você alcançou o nível ${novoLevel}! Ganhou 1 ponto de status.`);
 
       if (novoLevel === 3 && !playerClass) {
         setShowClassSelection(true);
@@ -516,12 +542,14 @@ const usePlayer = () => {
     setPlayer(prev => ({
       ...prev,
       playerClass: cls.name,
-      atk: prev.atk + cls.bonusAtk,
-      def: prev.def + cls.bonusDef,
+      forca: prev.forca + cls.bonusForca,
+      velocidade: prev.velocidade + cls.bonusVelocidade,
+      precisao: prev.precisao + cls.bonusPrecisao,
+      sorte: prev.sorte + cls.bonusSorte,
       maxHp: prev.maxHp + cls.bonusHp,
       hp: prev.maxHp + cls.bonusHp,
-      maxMana: prev.maxMana + (cls.bonusMana || 0),
-      mana: prev.maxMana + (cls.bonusMana || 0),
+      maxMp: prev.maxMp + cls.bonusMp,
+      mp: prev.maxMp + cls.bonusMp,
       skills: classSkills[cls.name] ? [classSkills[cls.name][0]] : []
     }));
     
@@ -533,8 +561,8 @@ const usePlayer = () => {
     if (player.hp <= 0) {
       setPlayer(prev => ({
         ...prev,
-        hp: prev.maxHp / 2,
-        mana: prev.maxMana / 2
+        hp: Math.floor(prev.maxHp / 2),
+        mp: Math.floor(prev.maxMp / 2)
       }));
     }
   };
@@ -555,7 +583,11 @@ const usePlayer = () => {
     entrarEmCombate,
     sairDoCombate,
     isInCombat,
-    classSkills
+    classSkills,
+    showLevelUpModal,
+    setShowLevelUpModal,
+    distributeStatPoint,
+    isLoading
   };
 };
 

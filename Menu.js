@@ -28,7 +28,8 @@ const Menu = ({
   onShowMap,
   onShowClassSelection,
   onShowQuest,
-  onShowAlquimia  // ← Nova prop para alquimia
+  onShowAlquimia,
+  onShowStatus  // ← NOVA PROP PARA STATUS
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeScreen, setActiveScreen] = useState(null);
@@ -88,6 +89,9 @@ const Menu = ({
       } else if (item.screen === 'alquimia') {
         onShowAlquimia();
         closeMenu();
+      } else if (item.screen === 'status') { // ← NOVO CASO PARA STATUS
+        onShowStatus();
+        closeMenu();
       } else {
         openScreen(item.screen);
       }
@@ -95,6 +99,13 @@ const Menu = ({
   };
 
   const menuItems = [
+    {
+      id: 'status',
+      title: '📊 Status Detalhado',
+      description: 'Atributos e habilidades completas',
+      color: '#00BFFF',
+      screen: 'status'
+    },
     {
       id: 'player',
       title: '👤 Status do Jogador',
@@ -170,8 +181,13 @@ const Menu = ({
           </View>
           <View style={styles.miniHudRow}>
             <Text style={styles.miniText}>❤️{player?.hp || 0}/{player?.maxHp || 100}</Text>
-            <Text style={styles.miniText}>🔵{player?.mana || 0}/{player?.maxMana || 50}</Text>
+            <Text style={styles.miniText}>🔵{player?.mp || 0}/{player?.maxMp || 50}</Text>
           </View>
+          {player?.availablePoints > 0 && (
+            <View style={styles.pointsAlert}>
+              <Text style={styles.pointsAlertText}>🎯 {player.availablePoints} ponto(s) para distribuir!</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -241,6 +257,14 @@ const Menu = ({
                     </View>
                   </View>
 
+                  {player?.availablePoints > 0 && (
+                    <View style={styles.pointsNotification}>
+                      <Text style={styles.pointsNotificationText}>
+                        🎯 Você tem {player.availablePoints} ponto(s) para distribuir!
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={styles.statRow}>
                     <Text style={styles.statIcon}>❤️</Text>
                     <View style={styles.barContainer}>
@@ -269,14 +293,14 @@ const Menu = ({
                           style={[
                             styles.barFill, 
                             { 
-                              width: `${((player?.mana || 0) / (player?.maxMana || 50)) * 100}%`,
+                              width: `${((player?.mp || 0) / (player?.maxMp || 50)) * 100}%`,
                               backgroundColor: '#4ECDC4'
                             }
                           ]} 
                         />
                       </View>
                       <Text style={styles.barText}>
-                        {player?.mana || 0}/{player?.maxMana || 50}
+                        {player?.mp || 0}/{player?.maxMp || 50}
                       </Text>
                     </View>
                   </View>
@@ -301,17 +325,48 @@ const Menu = ({
                     </View>
                   </View>
 
+                  {/* NOVOS STATUS PRINCIPAIS */}
+                  <View style={styles.mainStatsGrid}>
+                    <View style={styles.mainStatItem}>
+                      <Text style={styles.mainStatIcon}>💪</Text>
+                      <Text style={styles.mainStatValue}>{player?.forca || 10}</Text>
+                      <Text style={styles.mainStatLabel}>FORÇA</Text>
+                      <Text style={styles.mainStatDescription}>Dano Físico</Text>
+                    </View>
+                    
+                    <View style={styles.mainStatItem}>
+                      <Text style={styles.mainStatIcon}>⚡</Text>
+                      <Text style={styles.mainStatValue}>{player?.velocidade || 10}</Text>
+                      <Text style={styles.mainStatLabel}>VELOCIDADE</Text>
+                      <Text style={styles.mainStatDescription}>Esquiva</Text>
+                    </View>
+                    
+                    <View style={styles.mainStatItem}>
+                      <Text style={styles.mainStatIcon}>🎯</Text>
+                      <Text style={styles.mainStatValue}>{player?.precisao || 10}</Text>
+                      <Text style={styles.mainStatLabel}>PRECISÃO</Text>
+                      <Text style={styles.mainStatDescription}>Acerto</Text>
+                    </View>
+
+                    <View style={styles.mainStatItem}>
+                      <Text style={styles.mainStatIcon}>🍀</Text>
+                      <Text style={styles.mainStatValue}>{player?.sorte || 10}</Text>
+                      <Text style={styles.mainStatLabel}>SORTE</Text>
+                      <Text style={styles.mainStatDescription}>Crítico/Drops</Text>
+                    </View>
+                  </View>
+
                   <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
-                      <Text style={styles.statIconLarge}>⚔️</Text>
-                      <Text style={styles.statValue}>{player?.atk || 10}</Text>
-                      <Text style={styles.statLabel}>ATAQUE</Text>
+                      <Text style={styles.statIconLarge}>❤️</Text>
+                      <Text style={styles.statValue}>{player?.maxHp || 100}</Text>
+                      <Text style={styles.statLabel}>VIDA MÁX</Text>
                     </View>
                     
                     <View style={styles.statItem}>
-                      <Text style={styles.statIconLarge}>🛡️</Text>
-                      <Text style={styles.statValue}>{player?.def || 5}</Text>
-                      <Text style={styles.statLabel}>DEFESA</Text>
+                      <Text style={styles.statIconLarge}>🔵</Text>
+                      <Text style={styles.statValue}>{player?.maxMp || 50}</Text>
+                      <Text style={styles.statLabel}>MANA MÁX</Text>
                     </View>
                     
                     <View style={styles.statItem}>
@@ -321,7 +376,7 @@ const Menu = ({
                     </View>
 
                     <View style={styles.statItem}>
-                      <Text style={styles.statIconLarge}>🎯</Text>
+                      <Text style={styles.statIconLarge}>⭐</Text>
                       <Text style={styles.statValue}>{player?.level || 1}</Text>
                       <Text style={styles.statLabel}>NÍVEL</Text>
                     </View>
@@ -333,7 +388,7 @@ const Menu = ({
                     <View style={styles.infoGrid}>
                       <View style={styles.infoItem}>
                         <Text style={styles.infoLabel}>Classe:</Text>
-                        <Text style={styles.infoValue}>{player?.class || 'Aventureiro'}</Text>
+                        <Text style={styles.infoValue}>{player?.playerClass || 'Aventureiro'}</Text>
                       </View>
                       
                       <View style={styles.infoItem}>
@@ -349,6 +404,26 @@ const Menu = ({
                       <View style={styles.infoItem}>
                         <Text style={styles.infoLabel}>Progresso do nível:</Text>
                         <Text style={styles.infoValue}>{Math.round((xp / (level * 100)) * 100)}%</Text>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Chance de Crítico:</Text>
+                        <Text style={styles.infoValue}>{Math.min(50, ((player?.sorte || 10) * 1) + 5)}%</Text>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Chance de Esquiva:</Text>
+                        <Text style={styles.infoValue}>{Math.min(50, ((player?.velocidade || 10) * 3))}%</Text>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Chance de Acerto:</Text>
+                        <Text style={styles.infoValue}>{Math.min(95, ((player?.precisao || 10) * 2) + 70)}%</Text>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Dano Base:</Text>
+                        <Text style={styles.infoValue}>{Math.floor((player?.forca || 10) * 1.5)}</Text>
                       </View>
                     </View>
                   </View>
@@ -490,6 +565,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  pointsAlert: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    padding: 5,
+    borderRadius: 5,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  pointsAlertText: {
+    color: '#FFD700',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   menuItems: {
     flex: 1,
     paddingVertical: 10,
@@ -627,6 +716,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  pointsNotification: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  pointsNotificationText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   statRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -664,11 +767,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  statsGrid: {
+  // NOVOS ESTILOS PARA OS STATUS PRINCIPAIS
+  mainStatsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 20,
+    marginBottom: 25,
+    gap: 12,
+  },
+  mainStatItem: {
+    width: '48%',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 30, 60, 0.8)',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  mainStatIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  mainStatValue: {
+    color: '#FFD700',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  mainStatLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  mainStatDescription: {
+    color: '#a0a0c0',
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 10,
     marginBottom: 25,
     gap: 12,
   },
